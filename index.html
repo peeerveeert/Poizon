@@ -48,6 +48,23 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 .press{ transition: transform .15s ease, opacity .15s ease; }
 .press:active{ transform: scale(.97); opacity:.85; }
 
+/* ---------- tactile press feedback (applies broadly via JS-added class) ---------- */
+.tap-live{ transition: transform .09s ease; }
+.tap-live:active{ transform: scale(.95); }
+@keyframes tapBounce{
+  0%{ transform: scale(.95); }
+  55%{ transform: scale(1.035); }
+  100%{ transform: scale(1); }
+}
+.tap-bounce{ animation: tapBounce .3s cubic-bezier(.34,1.56,.64,1); }
+
+.tab, .viewbtn, .pstage, .item-head, .bubble-head, .namegroup-head, .mini-btn{
+  transition: transform .09s ease;
+}
+.tab:active, .viewbtn:active, .pstage:active, .item-head:active, .bubble-head:active, .namegroup-head:active, .mini-btn:active{
+  transform: scale(.96);
+}
+
 /* ---------- quick add ---------- */
 .quickadd{ padding:14px; margin-bottom:14px; }
 .qa-field{ margin-bottom:8px; }
@@ -115,6 +132,19 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 .bubble.open .bubble-body{ display:block; }
 .bubble.open .chev{ transform: rotate(90deg); }
 .bubble-body .item{ margin-bottom:8px; }
+
+.namegroup{
+  background:#f7fafd; border:1px solid #dce8f7; border-radius:16px;
+  margin-bottom:8px; overflow:hidden;
+}
+.namegroup-head{ padding:11px 13px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; gap:10px; }
+.namegroup-title{ font-weight:600; font-size:13.5px; color:#1d1d1f; }
+.ng-count{ font-weight:700; color:#0b4fa8; }
+.namegroup-sub{ font-size:11px; color:#6e6e73; margin-top:2px; }
+.namegroup-body{ display:none; padding:0 8px 8px; }
+.namegroup.open .namegroup-body{ display:block; }
+.namegroup.open .chev{ transform: rotate(90deg); }
+.namegroup-body .item{ margin-bottom:7px; }
 
 /* ---------- stat chips ---------- */
 .stats{ display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; padding-bottom:2px; -ms-overflow-style:none; scrollbar-width:none; }
@@ -225,9 +255,11 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 .receipt-head .em{ font-size:24px; }
 .receipt-head h2{ font-size:16px; margin:6px 0 2px; font-family:-apple-system,sans-serif; }
 .receipt-head .d{ font-size:11px; color:var(--ink-soft); }
-.receipt-line{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px dashed #c7c7cc; font-size:12.5px; }
-.receipt-line .nm{ font-weight:600; }
+.receipt-line{ display:flex; justify-content:space-between; gap:10px; padding:8px 0; border-bottom:1px dashed #c7c7cc; font-size:12.5px; }
+.receipt-line .nm-wrap{ min-width:0; flex:1; }
+.receipt-line .nm{ font-weight:600; overflow-wrap:anywhere; }
 .receipt-line .sub{ font-size:10.5px; color:var(--ink-soft); }
+.receipt-line .px{ flex-shrink:0; white-space:nowrap; }
 .receipt-total{ display:flex; justify-content:space-between; padding-top:12px; font-size:15px; font-weight:700; font-family:-apple-system,sans-serif; }
 .receipt-thanks{ text-align:center; font-size:10.5px; color:var(--ink-faint); margin-top:14px; }
 .receipt-barcode{ height:26px; margin-top:10px; background: repeating-linear-gradient(90deg, #1d1d1f 0 2px, transparent 2px 4px, #1d1d1f 4px 5px, transparent 5px 9px); opacity:.85; }
@@ -360,23 +392,18 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 <!-- ===================== RECEIPT MODAL ===================== -->
 <div class="modal-bg" id="receiptModal">
   <div class="modal">
-    <div class="receipt-paper" id="receiptPaper">
-      <div class="receipt-head">
-        <div class="em">🧾</div>
-        <h2 id="rcClient">Чек</h2>
-        <div class="d" id="rcDate"></div>
-      </div>
-      <div id="rcLines"></div>
-      <div class="receipt-total"><span>ИТОГО</span><span id="rcTotal">0 ₽</span></div>
-      <div class="receipt-thanks">Спасибо за заказ!</div>
-      <div class="receipt-barcode"></div>
-    </div>
+    <div class="receipt-paper" id="receiptPaper"></div>
     <div class="receipt-actions">
       <button class="pdf press" onclick="downloadReceiptPDF()">⬇︎ Скачать PDF</button>
       <button class="copy press" onclick="copyReceipt()">Скопировать текст</button>
       <button class="close press" onclick="closeReceipt()">Закрыть</button>
     </div>
   </div>
+</div>
+
+<!-- offscreen fixed-width copy used only for PDF export — avoids modal scroll/viewport clipping -->
+<div id="receiptExportHost" style="position:fixed; left:-99999px; top:0; width:360px;">
+  <div class="receipt-paper" id="receiptExportPaper"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -396,6 +423,7 @@ let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null') || {
 let currentFilter = 'all';
 let openId = null;
 let openBubbles = new Set();
+let openNameGroups = new Set();
 
 const STAGES = [
   {k:'draft', l:'Черновик'},
@@ -644,7 +672,42 @@ function bubbleHTML(tag, itemsIn){
         <span class="chev">▸</span>
       </div>
     </div>
-    <div class="bubble-body">${itemsIn.map(itemCardHTML).join('')}</div>
+    <div class="bubble-body">${groupByNameHTML(itemsIn, tag)}</div>
+  </div>`;
+}
+function groupByNameHTML(list, tag){
+  const byName = {};
+  const order = [];
+  list.forEach(i=>{
+    const key = (i.name||'').trim().toLowerCase() || '—';
+    if(!byName[key]){ byName[key]=[]; order.push(key); }
+    byName[key].push(i);
+  });
+  return order.map(key=>{
+    const g = byName[key];
+    if(g.length===1) return itemCardHTML(g[0]);
+    return nameGroupHTML(tag, key, g);
+  }).join('');
+}
+function nameGroupHTML(tag, key, group){
+  const ngKey = tag+'::'+key;
+  const isOpen = openNameGroups.has(ngKey);
+  const totalQty = group.reduce((s,i)=>s+(parseFloat(i.qty)||1),0);
+  const totalProfit = group.reduce((s,i)=>s+(profit(i)||0),0);
+  const clientsList = [...new Set(group.map(i=>i.client||'без клиента'))].join(', ');
+  return `
+  <div class="namegroup ${isOpen?'open':''}" data-namekey="${escapeAttr(ngKey)}">
+    <div class="namegroup-head" data-role="namegroup-toggle">
+      <div>
+        <div class="namegroup-title">${escapeHtml(group[0].name)} <span class="ng-count">× ${totalQty}</span></div>
+        <div class="namegroup-sub">${escapeHtml(clientsList)}</div>
+      </div>
+      <div class="item-right">
+        <span class="item-profit ${totalProfit?'':'na'}">${totalProfit?'+'+fmt(totalProfit)+' ₽':'—'}</span>
+        <span class="chev">▸</span>
+      </div>
+    </div>
+    <div class="namegroup-body">${group.map(itemCardHTML).join('')}</div>
   </div>`;
 }
 
@@ -720,6 +783,14 @@ function setText(root, sel, text){ const el = root.querySelector(sel); if(el) el
 
 /* ============ CLICK DELEGATION (stage change, delete, receipt) ============ */
 function handleCardClick(e){
+  const nameToggle = e.target.closest('[data-role="namegroup-toggle"]');
+  if(nameToggle){
+    const ng = nameToggle.closest('.namegroup');
+    const key = ng.dataset.namekey;
+    if(openNameGroups.has(key)) openNameGroups.delete(key); else openNameGroups.add(key);
+    ng.classList.toggle('open');
+    return;
+  }
   const bubbleToggle = e.target.closest('[data-role="bubble-toggle"]');
   if(bubbleToggle){
     const bubble = bubbleToggle.closest('.bubble');
@@ -785,29 +856,44 @@ function applyPurchaseSplit(){
 
 /* ============ RECEIPT ============ */
 let receiptClient = null;
-function openReceipt(client){
-  receiptClient = client;
+function buildReceiptHTML(client){
   const group = items.filter(i=>i.client===client && i.kind!=='self');
-  document.getElementById('rcClient').textContent = client || 'Клиент';
-  document.getElementById('rcDate').textContent = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
+  const dateStr = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
   let total = 0;
-  document.getElementById('rcLines').innerHTML = group.map(it=>{
+  const lines = group.map(it=>{
     const cp = clientPrice(it) || 0;
     total += cp;
     return `<div class="receipt-line">
-      <div><div class="nm">${escapeHtml(it.name)}</div><div class="sub">${it.size?('размер '+escapeHtml(it.size)+' · '):''}${it.qty} шт</div></div>
-      <div>${fmt(cp)} ₽</div>
+      <div class="nm-wrap"><div class="nm">${escapeHtml(it.name)}</div><div class="sub">${it.size?('размер '+escapeHtml(it.size)+' · '):''}${it.qty} шт</div></div>
+      <div class="px">${fmt(cp)} ₽</div>
     </div>`;
   }).join('') || '<div class="empty">Нет позиций</div>';
-  document.getElementById('rcTotal').textContent = fmt(total)+' ₽';
+
+  return `
+    <div class="receipt-head">
+      <div class="em">🧾</div>
+      <h2>${escapeHtml(client || 'Клиент')}</h2>
+      <div class="d">${dateStr}</div>
+    </div>
+    ${lines}
+    <div class="receipt-total"><span>ИТОГО</span><span>${fmt(total)} ₽</span></div>
+    <div class="receipt-thanks">Спасибо за заказ!</div>
+    <div class="receipt-barcode"></div>
+  `;
+}
+function openReceipt(client){
+  receiptClient = client;
+  const html = buildReceiptHTML(client);
+  document.getElementById('receiptPaper').innerHTML = html;
+  document.getElementById('receiptExportPaper').innerHTML = html;
   document.getElementById('receiptModal').classList.add('show');
 }
 function closeReceipt(){ document.getElementById('receiptModal').classList.remove('show'); }
 function downloadReceiptPDF(){
-  const el = document.getElementById('receiptPaper');
+  const el = document.getElementById('receiptExportPaper');
   const btn = document.querySelector('.receipt-actions .pdf');
   const old = btn.textContent; btn.textContent = 'Готовим…';
-  html2canvas(el, {scale:3, backgroundColor:'#ffffff'}).then(canvas=>{
+  html2canvas(el, {scale:3, backgroundColor:'#ffffff', windowWidth:360}).then(canvas=>{
     const { jsPDF } = window.jspdf;
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF({ unit:'px', format:[canvas.width, canvas.height] });
@@ -984,6 +1070,15 @@ document.getElementById('viewbar').addEventListener('click', e=>{
   root.addEventListener('change', handleFieldInput);
   root.addEventListener('click', handleCardClick);
 });
+
+/* ============ TACTILE FEEDBACK (spring bounce on every tap) ============ */
+document.addEventListener('click', e=>{
+  const el = e.target.closest('.press, .tab, .viewbtn, .pstage, .item-head, .bubble-head, .namegroup-head, .mini-btn');
+  if(!el) return;
+  el.classList.remove('tap-bounce');
+  void el.offsetWidth; // force reflow so the animation restarts every tap
+  el.classList.add('tap-bounce');
+}, true);
 
 /* ============ INIT ============ */
 refreshClientSelect();
