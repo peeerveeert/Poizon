@@ -277,6 +277,14 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 
 .empty{ text-align:center; padding:44px 20px; color:var(--ink-faint); font-size:13.5px; }
 
+#printRoot{ display:none; }
+@media print{
+  body > *:not(#printRoot){ display:none !important; }
+  #printRoot{ display:block !important; }
+  #printPaper{ width:100%; max-width:360px; margin:0 auto; }
+  #printPaper::before, #printPaper::after{ display:none; }
+}
+
 @media (min-width: 640px){ body{ max-width:600px; margin:0 auto; } }
 </style>
 </head>
@@ -400,20 +408,18 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
   <div class="modal">
     <div class="receipt-paper" id="receiptPaper"></div>
     <div class="receipt-actions">
-      <button class="pdf press" onclick="downloadReceiptPDF()">⬇︎ Скачать PDF</button>
+      <button class="pdf press" onclick="downloadReceiptPDF()">🖨️ PDF / Печать</button>
       <button class="copy press" onclick="copyReceipt()">Скопировать текст</button>
       <button class="close press" onclick="closeReceipt()">Закрыть</button>
     </div>
   </div>
 </div>
 
-<!-- offscreen fixed-width copy used only for PDF export — avoids modal scroll/viewport clipping -->
-<div id="receiptExportHost" style="position:fixed; top:0; left:0; width:360px; opacity:0; pointer-events:none; z-index:-1;">
-  <div class="receipt-paper" id="receiptExportPaper"></div>
+<!-- print-only copy: invisible on screen, appears only inside the browser's native print/PDF dialog -->
+<div id="printRoot">
+  <div class="receipt-paper" id="printPaper"></div>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 /* ============ STATE ============ */
 const STORAGE_KEY = 'poizon_items_v1';
@@ -912,25 +918,16 @@ function openReceipt(client){
   receiptClient = client;
   const html = buildReceiptHTML(client);
   document.getElementById('receiptPaper').innerHTML = html;
-  document.getElementById('receiptExportPaper').innerHTML = html;
+  document.getElementById('printPaper').innerHTML = html;
   document.getElementById('receiptModal').classList.add('show');
 }
 function closeReceipt(){ document.getElementById('receiptModal').classList.remove('show'); }
 function downloadReceiptPDF(){
-  const el = document.getElementById('receiptExportPaper');
-  const btn = document.querySelector('.receipt-actions .pdf');
-  const old = btn.textContent; btn.textContent = 'Готовим…';
-  // double rAF: let the browser fully paint the freshly-injected receipt before we snapshot it
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    html2canvas(el, { scale:3, backgroundColor:'#ffffff', useCORS:true }).then(canvas=>{
-      const { jsPDF } = window.jspdf;
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ unit:'px', format:[canvas.width, canvas.height] });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-      pdf.save(`Чек - ${receiptClient||'клиент'}.pdf`);
-      btn.textContent = old;
-    }).catch(()=>{ btn.textContent = old; alert('Не получилось собрать PDF — попробуй ещё раз.'); });
-  }));
+  // native browser print/PDF: zero third-party rendering — text is drawn by the OS itself,
+  // so layout and Cyrillic always come out correct. "Save as PDF" is a built-in destination
+  // in the print dialog on every platform (on iPhone: Share → Save to Files / Print, or pinch
+  // the print preview thumbnail to expand it into a real PDF).
+  window.print();
 }
 function copyReceipt(){
   const group = items.filter(i=>i.client===receiptClient && i.kind!=='self');
