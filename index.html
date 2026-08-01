@@ -745,6 +745,8 @@ function itemCardHTML(it){
     </div>
     <div class="item-body">
       <div class="field-grid">
+        <div class="field"><label>Клиент</label><input type="text" data-field="client" value="${escapeAttr(it.client)}" placeholder="имя"></div>
+        <div class="field"><label>Закупка (тег)</label><input type="text" data-field="purchaseTag" value="${escapeAttr(it.purchaseTag)}" placeholder="напр. закупка #12"></div>
         <div class="field">
           <label>Тип</label>
           <select data-field="type">
@@ -764,8 +766,6 @@ function itemCardHTML(it){
         <div class="field"><label>Цена, ¥/шт</label><input type="number" data-field="priceYuan" value="${it.priceYuan}" placeholder="—"></div>
         <div class="field"><label>Вес, кг</label><input type="number" step="0.01" data-field="weightKg" value="${it.weightKg}" placeholder="узнать"></div>
         <div class="field"><label>Курс себестоимости</label><input type="number" step="0.01" data-field="rateCost" value="${it.rateCost}" placeholder="в моменте"></div>
-        <div class="field"><label>Клиент</label><input type="text" data-field="client" value="${escapeAttr(it.client)}" placeholder="имя"></div>
-        <div class="field"><label>Закупка (тег)</label><input type="text" data-field="purchaseTag" value="${escapeAttr(it.purchaseTag)}" placeholder="напр. закупка #12"></div>
         <div class="field"><label>Межд. доставка, ₽ (доля)</label><input type="number" data-field="deliveryIntl" value="${it.deliveryIntl}" placeholder="авто/вручную"></div>
         <div class="field"><label>Доставка РФ, ₽ (доля)</label><input type="number" data-field="deliveryRf" value="${it.deliveryRf}" placeholder="авто/вручную"></div>
         <div class="field"><label>Страховка</label>
