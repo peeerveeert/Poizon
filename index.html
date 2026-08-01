@@ -32,7 +32,7 @@ body{
   color: var(--ink);
   background: var(--bg);
   min-height:100vh;
-  padding: 18px 14px 100px;
+  padding: calc(18px + env(safe-area-inset-top)) 14px calc(100px + env(safe-area-inset-bottom));
   -webkit-font-smoothing: antialiased;
 }
 h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; }
@@ -73,7 +73,7 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 /* ---------- tabs (iOS segmented control) ---------- */
 .tabs{ display:flex; gap:2px; background:#e9e9eb; padding:3px; border-radius:11px; margin-bottom:14px; }
 .tab{
-  flex:1; text-align:center; padding:8px 4px; font-size:13px; font-weight:600;
+  flex:1; text-align:center; padding:8px 2px; font-size:11.5px; font-weight:600;
   border-radius:9px; cursor:pointer; color:var(--ink-soft);
   transition: background .2s ease, color .2s ease;
 }
@@ -99,6 +99,22 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
   cursor:pointer; white-space:nowrap;
 }
 .viewbtn.active{ background: var(--ink); color:white; border-color:var(--ink); }
+
+/* ---------- purchase bubble (group by tag) ---------- */
+.bubble{
+  border-radius: var(--r-lg);
+  background: #eef4ff;
+  border: 1px solid #d3e3ff;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.bubble-head{ padding:13px 15px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; gap:10px; }
+.bubble-title{ font-weight:700; font-size:14.5px; color:#0b4fa8; }
+.bubble-sub{ font-size:11.5px; color:#4a76c2; margin-top:2px; }
+.bubble-body{ display:none; padding:0 8px 10px; }
+.bubble.open .bubble-body{ display:block; }
+.bubble.open .chev{ transform: rotate(90deg); }
+.bubble-body .item{ margin-bottom:8px; }
 
 /* ---------- stat chips ---------- */
 .stats{ display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; padding-bottom:2px; -ms-overflow-style:none; scrollbar-width:none; }
@@ -190,21 +206,36 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 }
 .modal-bg.show{ display:flex; }
 .modal{
-  width:100%; max-width:480px; background:white; border-radius:22px 22px 0 0;
-  padding:22px 20px 30px; max-height:82vh; overflow-y:auto;
+  width:100%; max-width:480px; background:#e4e4e7; border-radius:22px 22px 0 0;
+  padding:18px 16px calc(24px + env(safe-area-inset-bottom)); max-height:86vh; overflow-y:auto;
 }
-.receipt-head{ text-align:center; margin-bottom:14px; }
-.receipt-head .em{ font-size:26px; }
-.receipt-head h2{ font-size:17px; margin:6px 0 2px; }
-.receipt-head .d{ font-size:11.5px; color:var(--ink-soft); }
-.receipt-line{ display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; }
+.receipt-paper{
+  background:white; font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+  padding: 6px 18px 14px; position:relative;
+}
+.receipt-paper::before, .receipt-paper::after{
+  content:''; display:block; height:9px;
+  background:
+    linear-gradient(-45deg, #e4e4e7 5px, transparent 0) 0 0,
+    linear-gradient(45deg, #e4e4e7 5px, transparent 0) 0 0;
+  background-size: 10px 10px; background-repeat: repeat-x;
+}
+.receipt-paper::after{ transform: rotate(180deg); }
+.receipt-head{ text-align:center; margin:10px 0 12px; }
+.receipt-head .em{ font-size:24px; }
+.receipt-head h2{ font-size:16px; margin:6px 0 2px; font-family:-apple-system,sans-serif; }
+.receipt-head .d{ font-size:11px; color:var(--ink-soft); }
+.receipt-line{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px dashed #c7c7cc; font-size:12.5px; }
 .receipt-line .nm{ font-weight:600; }
-.receipt-line .sub{ font-size:11.5px; color:var(--ink-soft); }
-.receipt-total{ display:flex; justify-content:space-between; padding-top:14px; font-size:17px; font-weight:700; }
-.receipt-actions{ display:flex; gap:8px; margin-top:18px; }
-.receipt-actions button{ flex:1; padding:13px; border-radius:14px; border:none; font-weight:600; font-size:14px; cursor:pointer; }
+.receipt-line .sub{ font-size:10.5px; color:var(--ink-soft); }
+.receipt-total{ display:flex; justify-content:space-between; padding-top:12px; font-size:15px; font-weight:700; font-family:-apple-system,sans-serif; }
+.receipt-thanks{ text-align:center; font-size:10.5px; color:var(--ink-faint); margin-top:14px; }
+.receipt-barcode{ height:26px; margin-top:10px; background: repeating-linear-gradient(90deg, #1d1d1f 0 2px, transparent 2px 4px, #1d1d1f 4px 5px, transparent 5px 9px); opacity:.85; }
+.receipt-actions{ display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; }
+.receipt-actions button{ flex:1; min-width:120px; padding:13px; border-radius:14px; border:none; font-weight:600; font-size:13.5px; cursor:pointer; }
+.receipt-actions .pdf{ background: var(--ink); color:white; }
 .receipt-actions .copy{ background: var(--blue); color:white; }
-.receipt-actions .close{ background: #f0f0f2; color:var(--ink); }
+.receipt-actions .close{ background: #e4e4e7; color:var(--ink); flex-basis:100%; }
 
 .empty{ text-align:center; padding:44px 20px; color:var(--ink-faint); font-size:13.5px; }
 
@@ -219,6 +250,7 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 <div class="tabs" id="tabs">
   <div class="tab active" data-tab="orders">Заказы</div>
   <div class="tab" data-tab="self">Наши</div>
+  <div class="tab" data-tab="done">Готово</div>
   <div class="tab" data-tab="stats">Статистика</div>
   <div class="tab" data-tab="settings">Настройки</div>
 </div>
@@ -258,7 +290,6 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
     <div class="viewbtn" data-f="draft">Черновики</div>
     <div class="viewbtn" data-f="wait">Ждут курс</div>
     <div class="viewbtn" data-f="client">По клиенту</div>
-    <div class="viewbtn" data-f="purchase">По закупке</div>
   </div>
 
   <div class="stats" id="orderStats"></div>
@@ -276,6 +307,12 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
     <div class="qa-hint">Без наценки и комиссии — только себестоимость.</div>
   </div>
   <div id="selfList"></div>
+</div>
+
+<!-- ===================== DONE TAB ===================== -->
+<div id="tab-done" style="display:none">
+  <div class="subtitle">Отданные клиентам заказы — храним здесь, чтобы не мозолили глаза в основном списке.</div>
+  <div id="doneList"></div>
 </div>
 
 <!-- ===================== STATS TAB ===================== -->
@@ -323,20 +360,27 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 <!-- ===================== RECEIPT MODAL ===================== -->
 <div class="modal-bg" id="receiptModal">
   <div class="modal">
-    <div class="receipt-head">
-      <div class="em">🧾</div>
-      <h2 id="rcClient">Чек</h2>
-      <div class="d" id="rcDate"></div>
+    <div class="receipt-paper" id="receiptPaper">
+      <div class="receipt-head">
+        <div class="em">🧾</div>
+        <h2 id="rcClient">Чек</h2>
+        <div class="d" id="rcDate"></div>
+      </div>
+      <div id="rcLines"></div>
+      <div class="receipt-total"><span>ИТОГО</span><span id="rcTotal">0 ₽</span></div>
+      <div class="receipt-thanks">Спасибо за заказ!</div>
+      <div class="receipt-barcode"></div>
     </div>
-    <div id="rcLines"></div>
-    <div class="receipt-total"><span>Итого</span><span id="rcTotal">0 ₽</span></div>
     <div class="receipt-actions">
+      <button class="pdf press" onclick="downloadReceiptPDF()">⬇︎ Скачать PDF</button>
       <button class="copy press" onclick="copyReceipt()">Скопировать текст</button>
       <button class="close press" onclick="closeReceipt()">Закрыть</button>
     </div>
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 /* ============ STATE ============ */
 const STORAGE_KEY = 'poizon_items_v1';
@@ -351,6 +395,7 @@ let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null') || {
 };
 let currentFilter = 'all';
 let openId = null;
+let openBubbles = new Set();
 
 const STAGES = [
   {k:'draft', l:'Черновик'},
@@ -564,6 +609,45 @@ function itemCardHTML(it){
   </div>`;
 }
 
+/* ============ GROUP BY PURCHASE TAG (bubbles) ============ */
+function groupedListHTML(list){
+  if(!list.length) return `<div class="empty">Пока пусто</div>`;
+  const loose = [];
+  const groups = {};
+  list.forEach(i=>{
+    const tag = (i.purchaseTag||'').trim();
+    if(tag){ (groups[tag] = groups[tag]||[]).push(i); }
+    else loose.push(i);
+  });
+  const units = [];
+  loose.forEach(i=>units.push({type:'loose', item:i, t:i.createdAt}));
+  Object.keys(groups).forEach(tag=>{
+    const gi = groups[tag].sort((a,b)=>b.createdAt-a.createdAt);
+    units.push({type:'bubble', tag, items:gi, t: Math.max(...gi.map(i=>i.createdAt))});
+  });
+  units.sort((a,b)=>b.t-a.t);
+  return units.map(u=> u.type==='loose' ? itemCardHTML(u.item) : bubbleHTML(u.tag, u.items)).join('');
+}
+function bubbleHTML(tag, itemsIn){
+  const isOpen = openBubbles.has(tag);
+  const totalWeight = itemsIn.reduce((s,i)=>s+(parseFloat(i.weightKg)||0),0);
+  const totalProfit = itemsIn.reduce((s,i)=>s+(profit(i)||0),0);
+  return `
+  <div class="bubble ${isOpen?'open':''}" data-tag="${escapeAttr(tag)}">
+    <div class="bubble-head" data-role="bubble-toggle">
+      <div>
+        <div class="bubble-title">📦 ${escapeHtml(tag)}</div>
+        <div class="bubble-sub">${itemsIn.length} поз. · ${totalWeight?totalWeight.toFixed(2)+' кг':'вес не указан'}</div>
+      </div>
+      <div class="item-right">
+        <span class="item-profit ${totalProfit?'':'na'}">${totalProfit?'+'+fmt(totalProfit)+' ₽':'—'}</span>
+        <span class="chev">▸</span>
+      </div>
+    </div>
+    <div class="bubble-body">${itemsIn.map(itemCardHTML).join('')}</div>
+  </div>`;
+}
+
 function toggleOpen(id){
   openId = (openId===id) ? null : id;
   const el = document.querySelector(`.item[data-id="${id}"]`);
@@ -636,12 +720,27 @@ function setText(root, sel, text){ const el = root.querySelector(sel); if(el) el
 
 /* ============ CLICK DELEGATION (stage change, delete, receipt) ============ */
 function handleCardClick(e){
+  const bubbleToggle = e.target.closest('[data-role="bubble-toggle"]');
+  if(bubbleToggle){
+    const bubble = bubbleToggle.closest('.bubble');
+    const tag = bubble.dataset.tag;
+    if(openBubbles.has(tag)) openBubbles.delete(tag); else openBubbles.add(tag);
+    bubble.classList.toggle('open');
+    return;
+  }
   const stageEl = e.target.closest('[data-stage]');
   if(stageEl){
     const card = stageEl.closest('.item');
     const it = items.find(i=>i.id===card.dataset.id);
+    const wasDelivered = it.stage==='delivered';
     it.stage = stageEl.dataset.stage;
     save();
+    const nowDelivered = it.stage==='delivered';
+    if(it.kind!=='self' && wasDelivered!==nowDelivered){
+      // item needs to move between "Заказы" and "Готово" — full re-render of both
+      renderList(); renderDone();
+      return;
+    }
     card.querySelectorAll('[data-stage]').forEach(p=>p.classList.toggle('selected', p.dataset.stage===it.stage));
     refreshCardComputed(card, it);
     refreshStatChips();
@@ -654,7 +753,7 @@ function handleCardClick(e){
     if(actionEl.dataset.action==='delete'){
       items = items.filter(i=>i.id!==id);
       save();
-      renderList(); renderSelf();
+      renderList(); renderSelf(); renderDone();
       return;
     }
     if(actionEl.dataset.action==='receipt'){
@@ -704,6 +803,19 @@ function openReceipt(client){
   document.getElementById('receiptModal').classList.add('show');
 }
 function closeReceipt(){ document.getElementById('receiptModal').classList.remove('show'); }
+function downloadReceiptPDF(){
+  const el = document.getElementById('receiptPaper');
+  const btn = document.querySelector('.receipt-actions .pdf');
+  const old = btn.textContent; btn.textContent = 'Готовим…';
+  html2canvas(el, {scale:3, backgroundColor:'#ffffff'}).then(canvas=>{
+    const { jsPDF } = window.jspdf;
+    const imgData = canvas.toDataURL('image/png');
+    const pdf = new jsPDF({ unit:'px', format:[canvas.width, canvas.height] });
+    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+    pdf.save(`Чек - ${receiptClient||'клиент'}.pdf`);
+    btn.textContent = old;
+  }).catch(()=>{ btn.textContent = old; alert('Не получилось собрать PDF — попробуй ещё раз.'); });
+}
 function copyReceipt(){
   const group = items.filter(i=>i.client===receiptClient && i.kind!=='self');
   let text = `Чек — ${receiptClient}\n${new Date().toLocaleDateString('ru-RU')}\n\n`;
@@ -728,7 +840,7 @@ function setFilter(f){
   renderList();
 }
 function filteredItems(){
-  let list = items.filter(i=>i.kind!=='self');
+  let list = items.filter(i=>i.kind!=='self' && i.stage!=='delivered');
   if(currentFilter==='draft') list = list.filter(i=>deriveStatus(i)==='draft');
   if(currentFilter==='wait') list = list.filter(i=>!itHasRate(i));
   return list;
@@ -739,18 +851,24 @@ function renderList(){
   const list = filteredItems();
   const el = document.getElementById('itemsList');
 
-  if(currentFilter==='client' || currentFilter==='purchase'){
-    const key = currentFilter==='client' ? 'client' : 'purchaseTag';
+  if(currentFilter==='client'){
     const groups = {};
-    list.forEach(i=>{ const k=i[key]||'—'; (groups[k]=groups[k]||[]).push(i); });
+    list.forEach(i=>{ const k=i.client||'—'; (groups[k]=groups[k]||[]).push(i); });
     el.innerHTML = Object.keys(groups).map(k=>`
       <div class="subtitle" style="margin:14px 2px 6px;font-weight:700;color:var(--ink)">${escapeHtml(k)}</div>
-      ${groups[k].map(itemCardHTML).join('')}
+      ${groupedListHTML(groups[k])}
     `).join('') || `<div class="empty">Пока пусто</div>`;
   } else {
-    el.innerHTML = list.length ? list.map(itemCardHTML).join('') : `<div class="empty">Пока пусто — добавь первую позицию сверху</div>`;
+    el.innerHTML = list.length ? groupedListHTML(list) : `<div class="empty">Пока пусто — добавь первую позицию сверху</div>`;
   }
   refreshStatChips();
+}
+
+function renderDone(){
+  const el = document.getElementById('doneList');
+  if(!el) return;
+  const list = items.filter(i=>i.kind!=='self' && i.stage==='delivered');
+  el.innerHTML = groupedListHTML(list);
 }
 
 function refreshStatChips(){
@@ -845,11 +963,12 @@ document.getElementById('tabs').addEventListener('click', e=>{
   if(!t) return;
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');
-  ['orders','self','stats','settings'].forEach(name=>{
+  ['orders','self','done','stats','settings'].forEach(name=>{
     document.getElementById('tab-'+name).style.display = (name===t.dataset.tab) ? '' : 'none';
   });
   if(t.dataset.tab==='stats') renderStats();
   if(t.dataset.tab==='self') renderSelf();
+  if(t.dataset.tab==='done') renderDone();
 });
 
 document.getElementById('viewbar').addEventListener('click', e=>{
@@ -859,7 +978,7 @@ document.getElementById('viewbar').addEventListener('click', e=>{
 });
 
 /* ============ GLOBAL DELEGATION ON LISTS (survives re-renders, never re-bound per card) ============ */
-['itemsList','selfList'].forEach(id=>{
+['itemsList','selfList','doneList'].forEach(id=>{
   const root = document.getElementById(id);
   root.addEventListener('input', handleFieldInput);
   root.addEventListener('change', handleFieldInput);
