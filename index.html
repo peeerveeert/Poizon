@@ -257,12 +257,14 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 .receipt-head .em{ font-size:24px; }
 .receipt-head h2{ font-size:16px; margin:6px 0 2px; font-family:-apple-system,sans-serif; overflow-wrap:anywhere; }
 .receipt-head .d{ font-size:11px; color:var(--ink-soft); }
-.receipt-line{ display:flex; justify-content:space-between; gap:8px; padding:8px 0; border-bottom:1px dashed #c7c7cc; font-size:12.5px; width:100%; }
-.receipt-line .nm-wrap{ min-width:0; flex:1 1 auto; overflow:hidden; }
+.receipt-line{ overflow:hidden; padding:8px 0; border-bottom:1px dashed #c7c7cc; font-size:12.5px; width:100%; box-sizing:border-box; }
+.receipt-line .nm-wrap{ float:left; max-width:64%; }
 .receipt-line .nm{ font-weight:600; overflow-wrap:anywhere; word-break:break-word; }
 .receipt-line .sub{ font-size:10.5px; color:var(--ink-soft); }
-.receipt-line .px{ flex:0 0 auto; white-space:nowrap; }
-.receipt-total{ display:flex; justify-content:space-between; gap:8px; padding-top:12px; font-size:15px; font-weight:700; font-family:-apple-system,sans-serif; width:100%; }
+.receipt-line .px{ float:right; white-space:nowrap; padding-top:1px; }
+.receipt-total{ overflow:hidden; padding-top:12px; font-size:15px; font-weight:700; font-family:-apple-system,sans-serif; width:100%; box-sizing:border-box; }
+.receipt-total span:first-child{ float:left; }
+.receipt-total span:last-child{ float:right; white-space:nowrap; }
 .receipt-total span:first-child{ min-width:0; }
 .receipt-total span:last-child{ flex:0 0 auto; white-space:nowrap; }
 .receipt-thanks{ text-align:center; font-size:10.5px; color:var(--ink-faint); margin-top:14px; }
@@ -918,20 +920,9 @@ function downloadReceiptPDF(){
   const el = document.getElementById('receiptExportPaper');
   const btn = document.querySelector('.receipt-actions .pdf');
   const old = btn.textContent; btn.textContent = 'Готовим…';
-  // give the browser a tick to lay out the freshly-injected content before measuring it
-  requestAnimationFrame(()=>{
-    const w = Math.ceil(el.getBoundingClientRect().width) || 360;
-    const h = Math.ceil(el.getBoundingClientRect().height) || el.scrollHeight;
-    html2canvas(el, {
-      scale:3,
-      backgroundColor:'#ffffff',
-      width:w,
-      height:h,
-      windowWidth:w,
-      windowHeight:h,
-      x:0, y:0,
-      scrollX:0, scrollY:0
-    }).then(canvas=>{
+  // double rAF: let the browser fully paint the freshly-injected receipt before we snapshot it
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    html2canvas(el, { scale:3, backgroundColor:'#ffffff', useCORS:true }).then(canvas=>{
       const { jsPDF } = window.jspdf;
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ unit:'px', format:[canvas.width, canvas.height] });
@@ -939,7 +930,7 @@ function downloadReceiptPDF(){
       pdf.save(`Чек - ${receiptClient||'клиент'}.pdf`);
       btn.textContent = old;
     }).catch(()=>{ btn.textContent = old; alert('Не получилось собрать PDF — попробуй ещё раз.'); });
-  });
+  }));
 }
 function copyReceipt(){
   const group = items.filter(i=>i.client===receiptClient && i.kind!=='self');
