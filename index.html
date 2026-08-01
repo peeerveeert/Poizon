@@ -9,283 +9,214 @@
 <title>Poizon Orders</title>
 <style>
 :root{
-  --glass-bg: rgba(255,255,255,0.42);
-  --glass-bg-strong: rgba(255,255,255,0.62);
-  --glass-border: rgba(255,255,255,0.55);
-  --ink: #1b1c22;
-  --ink-soft: #6b6c76;
-  --ink-faint: #a6a7b0;
-  --accent: #4d7cff;
-  --accent-soft: #7fa4ff;
-  --good: #1fa971;
-  --warn: #d98a20;
-  --bad: #e0554f;
-  --r-lg: 26px;
-  --r-md: 18px;
-  --r-sm: 12px;
-  --spring: cubic-bezier(.34,1.56,.64,1);
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --border: #e4e4e7;
+  --ink: #1d1d1f;
+  --ink-soft: #6e6e73;
+  --ink-faint: #a1a1a6;
+  --blue: #0071e3;
+  --blue-dark: #0059b3;
+  --green: #1e8e4c;
+  --amber: #c77700;
+  --red: #d70015;
+  --r-lg: 20px;
+  --r-md: 14px;
+  --r-sm: 10px;
 }
 *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
-html,body{
-  height:100%;
-  overscroll-behavior: none;
-  touch-action: manipulation;
-}
+html,body{ height:100%; overscroll-behavior:none; touch-action: manipulation; }
 body{
   margin:0;
-  font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Segoe UI", Arial, sans-serif;
+  font-family: -apple-system, "SF Pro Text", "SF Pro Display", "Segoe UI", Arial, sans-serif;
   color: var(--ink);
+  background: var(--bg);
   min-height:100vh;
   padding: 18px 14px 100px;
-  position:relative;
-  overflow-x:hidden;
+  -webkit-font-smoothing: antialiased;
 }
+h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; }
+.subtitle{ color:var(--ink-soft); font-size:13px; margin:0 2px 16px; }
 
-/* ---------- Liquid background ---------- */
-.bg{
-  position:fixed; inset:0; z-index:-2;
-  background:
-    radial-gradient(circle at 15% 20%, #cfe0ff 0%, transparent 45%),
-    radial-gradient(circle at 85% 15%, #f3d6ff 0%, transparent 50%),
-    radial-gradient(circle at 75% 80%, #d3f5ea 0%, transparent 50%),
-    radial-gradient(circle at 20% 85%, #ffe3d6 0%, transparent 45%),
-    linear-gradient(160deg,#f5f7fb, #eef1f8);
-  background-size: 180% 180%;
-  animation: drift 26s ease-in-out infinite;
-}
-@keyframes drift{
-  0%{ background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
-  50%{ background-position: 20% 30%, 80% 20%, 75% 75%, 25% 80%, 0 0; }
-  100%{ background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0 0; }
-}
-.blob{
-  position:fixed; border-radius:50%; filter: blur(60px); opacity:.5; z-index:-1;
-  animation: floaty 18s ease-in-out infinite;
-}
-.blob.b1{ width:260px;height:260px; background:#a9c6ff; top:-60px; left:-60px; }
-.blob.b2{ width:220px;height:220px; background:#ffc9ec; bottom:10%; right:-60px; animation-delay:-6s; }
-.blob.b3{ width:180px;height:180px; background:#bdf5df; bottom:-60px; left:30%; animation-delay:-11s; }
-@keyframes floaty{
-  0%,100%{ transform: translate(0,0) scale(1); }
-  50%{ transform: translate(20px,-30px) scale(1.08); }
-}
-
-svg.filters{ position:absolute; width:0; height:0; }
-
-/* ---------- glass base ---------- */
-.glass{
-  background: var(--glass-bg);
-  backdrop-filter: blur(22px) saturate(180%);
-  -webkit-backdrop-filter: blur(22px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  box-shadow:
-    0 10px 30px rgba(31,38,90,0.10),
-    inset 0 1px 0 rgba(255,255,255,0.7),
-    inset 0 -1px 8px rgba(255,255,255,0.15);
+.card{
+  background: var(--card);
+  border: 1px solid var(--border);
   border-radius: var(--r-lg);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
 }
 
-h1{ font-size:21px; margin:4px 2px 2px; font-weight:750; letter-spacing:-.02em; }
-.subtitle{ color:var(--ink-soft); font-size:12.5px; margin: 0 2px 16px; }
-
-/* ---------- droplet press ---------- */
-.droplet{
-  position:relative; overflow:hidden;
-  transition: transform .38s var(--spring);
-}
-.droplet:active{ transform: scale(.94); }
-.droplet::after{
-  content:''; position:absolute; inset:0; border-radius:inherit;
-  background: radial-gradient(circle at var(--rx,50%) var(--ry,50%), rgba(255,255,255,.9), transparent 60%);
-  opacity:0; transition: opacity .5s ease;
-  pointer-events:none;
-}
-.droplet.rippling::after{ opacity:.55; transition: opacity .05s; }
+.press{ transition: transform .15s ease, opacity .15s ease; }
+.press:active{ transform: scale(.97); opacity:.85; }
 
 /* ---------- quick add ---------- */
-.quickadd{ padding:12px; margin-bottom:14px; }
-.qa-row{ display:flex; gap:7px; flex-wrap:wrap; }
-.qa-row input, .qa-row select{
-  border:1px solid rgba(255,255,255,.7);
-  background: rgba(255,255,255,.55);
+.quickadd{ padding:14px; margin-bottom:14px; }
+.qa-field{ margin-bottom:8px; }
+.qa-field:last-of-type{ margin-bottom:0; }
+.qa-field input, .qa-field select{
+  width:100%;
+  border:1px solid var(--border);
+  background: #fafafa;
   border-radius: var(--r-sm);
-  padding:10px 12px; font-size:13.5px; color:var(--ink);
-  backdrop-filter: blur(6px);
+  padding:12px 13px; font-size:16px; color:var(--ink);
 }
-.qa-row input:focus, .qa-row select:focus{ outline:none; border-color:var(--accent-soft); background:rgba(255,255,255,.8); }
-.qa-item{ flex:2.2; min-width:130px; }
-.qa-who{ flex:1.3; min-width:100px; }
+.qa-field input:focus, .qa-field select:focus{ outline:none; border-color:var(--blue); background:white; }
+.qa-two{ display:flex; gap:8px; }
+.qa-two > *{ flex:1; min-width:0; }
 .qa-add{
-  flex:0 0 auto; border:none; cursor:pointer;
-  background: linear-gradient(135deg,#4d7cff,#7857ff);
-  color:white; font-weight:700; font-size:13.5px;
-  padding:10px 18px; border-radius: var(--r-sm);
-  box-shadow: 0 6px 16px rgba(77,124,255,.35);
+  width:100%; margin-top:10px;
+  border:none; cursor:pointer;
+  background: var(--blue); color:white; font-weight:600; font-size:15px;
+  padding:12px; border-radius: var(--r-sm);
 }
-.qa-hint{ font-size:11px; color:var(--ink-faint); margin-top:7px; padding-left:2px; }
+.qa-hint{ font-size:12px; color:var(--ink-faint); margin-top:8px; }
 
-/* ---------- tabs ---------- */
-.tabs{ display:flex; gap:5px; padding:5px; margin-bottom:14px; border-radius: 999px; }
+/* ---------- tabs (iOS segmented control) ---------- */
+.tabs{ display:flex; gap:2px; background:#e9e9eb; padding:3px; border-radius:11px; margin-bottom:14px; }
 .tab{
-  flex:1; text-align:center; padding:9px 4px; font-size:12.5px; font-weight:700;
-  border-radius:999px; cursor:pointer; color:var(--ink-soft); transition: all .3s var(--spring);
+  flex:1; text-align:center; padding:8px 4px; font-size:13px; font-weight:600;
+  border-radius:9px; cursor:pointer; color:var(--ink-soft);
+  transition: background .2s ease, color .2s ease;
 }
-.tab.active{ background: rgba(255,255,255,.85); color:var(--ink); box-shadow:0 4px 12px rgba(31,38,90,.12); }
+.tab.active{ background:white; color:var(--ink); box-shadow:0 1px 3px rgba(0,0,0,.12); }
 
-/* ---------- filter row ---------- */
-.viewbar{ display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; }
+/* ---------- purchase split ---------- */
+.purchase-panel{ padding:14px; margin-bottom:16px; }
+.purchase-panel h3{ font-size:14px; margin:0 0 4px; font-weight:700; }
+.purchase-panel .hint{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; line-height:1.5; }
+.pp-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+.pp-row select, .pp-row input{
+  flex:1; min-width:100px; border-radius: var(--r-sm); border:1px solid var(--border);
+  padding:10px 11px; background:#fafafa; font-size:15px;
+}
+.pp-apply{ border:none; background:var(--ink); color:white; border-radius:var(--r-sm); padding:11px 16px; font-size:14px; font-weight:600; cursor:pointer; width:100%; }
+
+/* ---------- view filter (horizontal chips) ---------- */
+.viewbar{ display:flex; gap:6px; overflow-x:auto; padding:2px 2px 12px; -ms-overflow-style:none; scrollbar-width:none; }
+.viewbar::-webkit-scrollbar{ display:none; }
 .viewbtn{
-  flex:0 0 auto; font-size:12px; font-weight:600; padding:7px 13px; border-radius:999px;
-  background: rgba(255,255,255,.45); border:1px solid rgba(255,255,255,.6); color:var(--ink-soft);
-  cursor:pointer; white-space:nowrap; transition: all .25s var(--spring);
+  flex:0 0 auto; font-size:13px; font-weight:600; padding:8px 14px; border-radius:999px;
+  background: white; border:1px solid var(--border); color:var(--ink-soft);
+  cursor:pointer; white-space:nowrap;
 }
 .viewbtn.active{ background: var(--ink); color:white; border-color:var(--ink); }
 
 /* ---------- stat chips ---------- */
-.stats{ display:flex; gap:9px; margin-bottom:16px; overflow-x:auto; padding-bottom:2px; }
-.chip{
-  flex:0 0 auto; min-width:112px; padding:11px 15px; border-radius:18px;
-  background: linear-gradient(135deg, rgba(27,28,34,.92), rgba(50,45,70,.92));
-  color:white;
-}
-.chip .l{ font-size:10px; color:#b7b8c8; }
-.chip .v{ font-size:16.5px; font-weight:800; margin-top:2px; }
-.chip .v.warn{ color:#ffcf6b; }
-.chip .v.good{ color:#7CF0B4; }
+.stats{ display:flex; gap:8px; margin-bottom:16px; overflow-x:auto; padding-bottom:2px; -ms-overflow-style:none; scrollbar-width:none; }
+.stats::-webkit-scrollbar{ display:none; }
+.chip{ flex:0 0 auto; min-width:118px; padding:12px 15px; border-radius:16px; background: var(--ink); color:white; }
+.chip .l{ font-size:10.5px; color:#a1a1a6; }
+.chip .v{ font-size:17px; font-weight:700; margin-top:2px; }
+.chip .v.warn{ color:#ffb340; }
+.chip .v.good{ color:#30d158; }
 
 /* ---------- item card ---------- */
-.item{ margin-bottom:11px; overflow:hidden; }
-.item-head{ padding:13px 15px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; gap:8px; }
-.item-name{ font-weight:700; font-size:14.5px; }
-.item-tags{ font-size:11px; color:var(--ink-soft); margin-top:2px; }
-.item-right{ display:flex; align-items:center; gap:9px; flex-shrink:0; }
-.item-profit{ font-size:13px; font-weight:700; color:var(--good); white-space:nowrap; }
-.item-profit.na{ color:var(--ink-faint); font-weight:600; font-size:11.5px; }
-.chev{ color:var(--ink-faint); transition: transform .35s var(--spring); font-size:13px; }
+.item{ margin-bottom:10px; overflow:hidden; }
+.item-head{ padding:14px 15px; display:flex; align-items:center; justify-content:space-between; cursor:pointer; gap:10px; }
+.item-name{ font-weight:600; font-size:15px; }
+.item-tags{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+.item-right{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+.item-profit{ font-size:14px; font-weight:700; color:var(--green); white-space:nowrap; }
+.item-profit.na{ color:var(--ink-faint); font-weight:600; font-size:12px; }
+.chev{ color:var(--ink-faint); transition: transform .25s ease; font-size:14px; }
 .item.open .chev{ transform: rotate(90deg); }
 
-.progress{ display:flex; gap:3px; margin-top:6px; }
-.dot{ width:16px; height:5px; border-radius:3px; background: rgba(0,0,0,.08); }
-.dot.done{ background: var(--accent); }
+.progress{ display:flex; gap:3px; margin-top:7px; }
+.dot{ width:16px; height:4px; border-radius:2px; background: #e4e4e7; }
+.dot.done{ background: var(--blue); }
 
-.item-body{ max-height:0; overflow:hidden; transition: max-height .45s var(--spring); padding:0 15px; }
-.item.open .item-body{ max-height:900px; padding-bottom:16px; }
+.item-body{ display:none; padding:0 15px 16px; border-top:1px solid var(--border); }
+.item.open .item-body{ display:block; padding-top:14px; }
 
-.field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+.field-grid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
 .field{ display:flex; flex-direction:column; gap:4px; }
 .field.full{ grid-column: 1/-1; }
-.field label{ font-size:10px; color:var(--ink-faint); font-weight:700; text-transform:uppercase; letter-spacing:.02em; }
+.field label{ font-size:10.5px; color:var(--ink-faint); font-weight:700; text-transform:uppercase; letter-spacing:.03em; }
 .field input, .field select{
-  border:1px solid rgba(0,0,0,.08); background: rgba(255,255,255,.6);
-  border-radius:10px; padding:8px 10px; font-size:13px; color:var(--ink);
+  border:1px solid var(--border); background: #fafafa;
+  border-radius:10px; padding:10px 11px; font-size:15px; color:var(--ink);
+  width:100%;
 }
-.field input:focus, .field select:focus{ outline:none; border-color: var(--accent-soft); background:white; }
-.field input::placeholder{ color:var(--ink-faint); font-style:italic; }
-.field input:disabled{ color: var(--ink-soft); background:rgba(0,0,0,.03); }
+.field input:focus, .field select:focus{ outline:none; border-color: var(--blue); background:white; }
+.field input::placeholder{ color:var(--ink-faint); }
+.field input:disabled{ color: var(--ink-faint); background:#f0f0f2; }
 
 .summary-box{
-  margin-top:10px; padding:10px 12px; border-radius:14px;
-  background: rgba(255,255,255,.5); font-size:12.5px; line-height:1.9;
+  margin-top:12px; padding:12px 13px; border-radius:14px;
+  background: #f5f5f7; font-size:13.5px; line-height:2;
 }
 .summary-box .row{ display:flex; justify-content:space-between; }
-.summary-box .row.total{ font-weight:800; border-top:1px dashed rgba(0,0,0,.12); margin-top:4px; padding-top:6px; }
+.summary-box .row.total{ font-weight:700; border-top:1px dashed #d2d2d7; margin-top:5px; padding-top:7px; }
 
-.progress-row{ display:flex; gap:5px; margin-top:10px; overflow-x:auto; }
+.progress-row{ display:flex; gap:6px; margin-top:12px; overflow-x:auto; -ms-overflow-style:none; scrollbar-width:none; }
+.progress-row::-webkit-scrollbar{ display:none; }
 .pstage{
-  flex:0 0 auto; font-size:10.5px; padding:6px 10px; border-radius:999px;
-  background: rgba(0,0,0,.05); color:var(--ink-soft); cursor:pointer; white-space:nowrap;
-  transition: all .25s var(--spring);
+  flex:0 0 auto; font-size:11px; font-weight:600; padding:7px 11px; border-radius:999px;
+  background: #f0f0f2; color:var(--ink-soft); cursor:pointer; white-space:nowrap; border:1px solid transparent;
 }
 .pstage.selected{ background: var(--ink); color:white; }
 
-.item-actions{ display:flex; gap:8px; margin-top:12px; }
+.item-actions{ display:flex; gap:8px; margin-top:14px; }
 .mini-btn{
-  font-size:11.5px; font-weight:600; padding:7px 12px; border-radius:10px; border:none; cursor:pointer;
-  background: rgba(0,0,0,.06); color:var(--ink);
+  font-size:12.5px; font-weight:600; padding:9px 13px; border-radius:10px; border:none; cursor:pointer; flex:1;
 }
-.mini-btn.receipt{ background: linear-gradient(135deg,#4d7cff,#7857ff); color:white; }
-.mini-btn.danger{ background: rgba(224,85,79,.12); color:var(--bad); }
-
-/* ---------- purchase split panel ---------- */
-.purchase-panel{ padding:14px; margin-bottom:16px; }
-.purchase-panel h3{ font-size:13.5px; margin:0 0 3px; }
-.purchase-panel .hint{ font-size:11px; color:var(--ink-soft); margin-bottom:10px; line-height:1.5; }
-.pp-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
-.pp-row select{ flex:1; min-width:120px; border-radius:10px; border:1px solid rgba(0,0,0,.08); padding:8px 10px; background:rgba(255,255,255,.6); font-size:12.5px;}
-.pp-row input{ flex:1; min-width:90px; border-radius:10px; border:1px solid rgba(0,0,0,.08); padding:8px 10px; background:rgba(255,255,255,.6); font-size:12.5px;}
-.pp-apply{ border:none; background:var(--ink); color:white; border-radius:10px; padding:8px 16px; font-size:12.5px; font-weight:700; cursor:pointer;}
+.mini-btn.receipt{ background: var(--blue); color:white; }
+.mini-btn.danger{ background: #fdecec; color:var(--red); }
 
 /* ---------- settings ---------- */
 .settings-panel{ padding:14px; margin-bottom:16px; }
-.settings-panel h3{ font-size:13.5px; margin:0 0 10px; }
-.set-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.set-field label{ font-size:10px; color:var(--ink-faint); font-weight:700; }
-.set-field input{ width:100%; margin-top:3px; border-radius:10px; border:1px solid rgba(0,0,0,.08); padding:8px 10px; background:rgba(255,255,255,.6); font-size:13px; }
+.settings-panel h3{ font-size:14px; margin:0 0 10px; font-weight:700; }
+.set-grid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; }
+.set-field label{ font-size:10.5px; color:var(--ink-faint); font-weight:700; }
+.set-field input{ width:100%; margin-top:4px; border-radius:10px; border:1px solid var(--border); padding:10px 11px; background:#fafafa; font-size:15px; }
+.set-field input:focus{ outline:none; border-color:var(--blue); background:white; }
 
 /* ---------- stats tab ---------- */
-.big-stat{ text-align:center; padding:22px 0 6px; }
-.big-stat .n{ font-size:38px; font-weight:800; letter-spacing:-.02em; }
-.big-stat .l{ font-size:12px; color:var(--ink-soft); margin-top:2px; }
+.big-stat{ text-align:center; padding:26px 0 8px; }
+.big-stat .n{ font-size:38px; font-weight:700; letter-spacing:-.02em; }
+.big-stat .l{ font-size:13px; color:var(--ink-soft); margin-top:3px; }
 .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:16px 0; }
-.stat-card{ padding:14px; text-align:center; }
-.stat-card .v{ font-size:19px; font-weight:800; }
-.stat-card .l{ font-size:10.5px; color:var(--ink-soft); margin-top:3px; }
-.order-row{ padding:12px 15px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-.order-row .name{ font-weight:700; font-size:13.5px; }
-.order-row .meta{ font-size:11px; color:var(--ink-soft); }
-.order-row .p{ font-weight:800; color:var(--good); font-size:13.5px; }
+.stat-card{ padding:16px; text-align:center; }
+.stat-card .v{ font-size:19px; font-weight:700; }
+.stat-card .l{ font-size:11px; color:var(--ink-soft); margin-top:4px; }
+.order-row{ padding:13px 15px; display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.order-row .name{ font-weight:600; font-size:14px; }
+.order-row .meta{ font-size:11.5px; color:var(--ink-soft); }
+.order-row .p{ font-weight:700; color:var(--green); font-size:14px; }
 
 /* ---------- modal (receipt) ---------- */
 .modal-bg{
-  position:fixed; inset:0; background:rgba(20,20,30,.4); backdrop-filter: blur(6px);
+  position:fixed; inset:0; background:rgba(0,0,0,.35);
   display:none; align-items:flex-end; justify-content:center; z-index:50;
 }
 .modal-bg.show{ display:flex; }
 .modal{
-  width:100%; max-width:480px; background:white; border-radius:26px 26px 0 0;
-  padding:22px 20px 30px; transform: translateY(100%); transition: transform .45s var(--spring);
-  max-height:82vh; overflow-y:auto;
+  width:100%; max-width:480px; background:white; border-radius:22px 22px 0 0;
+  padding:22px 20px 30px; max-height:82vh; overflow-y:auto;
 }
-.modal-bg.show .modal{ transform: translateY(0); }
 .receipt-head{ text-align:center; margin-bottom:14px; }
 .receipt-head .em{ font-size:26px; }
 .receipt-head h2{ font-size:17px; margin:6px 0 2px; }
 .receipt-head .d{ font-size:11.5px; color:var(--ink-soft); }
-.receipt-line{ display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px dashed rgba(0,0,0,.1); font-size:13.5px; }
+.receipt-line{ display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; }
 .receipt-line .nm{ font-weight:600; }
-.receipt-line .sub{ font-size:11px; color:var(--ink-soft); }
-.receipt-total{ display:flex; justify-content:space-between; padding-top:14px; font-size:17px; font-weight:800; }
+.receipt-line .sub{ font-size:11.5px; color:var(--ink-soft); }
+.receipt-total{ display:flex; justify-content:space-between; padding-top:14px; font-size:17px; font-weight:700; }
 .receipt-actions{ display:flex; gap:8px; margin-top:18px; }
-.receipt-actions button{ flex:1; padding:12px; border-radius:14px; border:none; font-weight:700; font-size:13px; cursor:pointer; }
-.receipt-actions .copy{ background: var(--ink); color:white; }
-.receipt-actions .close{ background: rgba(0,0,0,.06); color:var(--ink); }
+.receipt-actions button{ flex:1; padding:13px; border-radius:14px; border:none; font-weight:600; font-size:14px; cursor:pointer; }
+.receipt-actions .copy{ background: var(--blue); color:white; }
+.receipt-actions .close{ background: #f0f0f2; color:var(--ink); }
 
-.empty{ text-align:center; padding:40px 20px; color:var(--ink-faint); font-size:13px; }
+.empty{ text-align:center; padding:44px 20px; color:var(--ink-faint); font-size:13.5px; }
 
-@media (min-width: 640px){
-  body{ max-width:600px; margin:0 auto; }
-}
+@media (min-width: 640px){ body{ max-width:600px; margin:0 auto; } }
 </style>
 </head>
 <body>
 
-<div class="bg"></div>
-<div class="blob b1"></div>
-<div class="blob b2"></div>
-<div class="blob b3"></div>
-
-<svg class="filters"><defs>
-  <filter id="glassDistort">
-    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.02" numOctaves="2" seed="7" result="noise"/>
-    <feDisplacementMap in="SourceGraphic" in2="noise" scale="6"/>
-  </filter>
-</defs></svg>
-
 <h1>Poizon Orders</h1>
 <div class="subtitle">Заказы, доставка и прибыль — всё в одном месте</div>
 
-<!-- TABS -->
-<div class="tabs glass" id="tabs">
+<div class="tabs" id="tabs">
   <div class="tab active" data-tab="orders">Заказы</div>
   <div class="tab" data-tab="self">Наши</div>
   <div class="tab" data-tab="stats">Статистика</div>
@@ -295,27 +226,31 @@ h1{ font-size:21px; margin:4px 2px 2px; font-weight:750; letter-spacing:-.02em; 
 <!-- ===================== ORDERS TAB ===================== -->
 <div id="tab-orders">
 
-  <div class="quickadd glass droplet">
-    <div class="qa-row">
-      <input class="qa-item" id="qa-name" placeholder="Товар (можно только это)">
-      <select class="qa-who" id="qa-client">
+  <div class="quickadd card">
+    <div class="qa-field">
+      <input id="qa-name" placeholder="Товар (можно только это)">
+    </div>
+    <div class="qa-two qa-field">
+      <select id="qa-client">
         <option value="">Клиент…</option>
       </select>
-      <input type="text" id="qa-newclient" placeholder="или новое имя" style="flex:1;min-width:100px;">
-      <button class="qa-add droplet" onclick="quickAdd()">+ Добавить</button>
+      <input type="text" id="qa-newclient" placeholder="или новое имя">
     </div>
+    <button class="qa-add press" onclick="quickAdd()">+ Добавить</button>
     <div class="qa-hint">Остальное — потом, когда появится информация. Пусто — не страшно.</div>
   </div>
 
-  <div class="purchase-panel glass">
+  <div class="purchase-panel card">
     <h3>📦 Разбить доставку по закупке</h3>
-    <div class="hint">Впиши сумму, когда узнал факт (межд. доставка от RAKETA / доставка РФ от СДЭК) — разложится по всем позициям этой закупки пропорционально весу автоматически.</div>
+    <div class="hint">Впиши сумму, когда узнал факт (межд. доставка от RAKETA / доставка РФ от СДЭК) — разложится по всем позициям этой закупки пропорционально весу.</div>
     <div class="pp-row">
       <select id="pp-tag"></select>
+    </div>
+    <div class="pp-row">
       <input type="number" id="pp-intl" placeholder="Межд. доставка, ₽">
       <input type="number" id="pp-rf" placeholder="Доставка РФ, ₽">
     </div>
-    <button class="pp-apply droplet" onclick="applyPurchaseSplit()">Разложить по весу</button>
+    <button class="pp-apply press" onclick="applyPurchaseSplit()">Разложить по весу</button>
   </div>
 
   <div class="viewbar" id="viewbar">
@@ -333,11 +268,11 @@ h1{ font-size:21px; margin:4px 2px 2px; font-weight:750; letter-spacing:-.02em; 
 
 <!-- ===================== SELF TAB ===================== -->
 <div id="tab-self" style="display:none">
-  <div class="quickadd glass droplet">
-    <div class="qa-row">
-      <input class="qa-item" id="qa-self-name" placeholder="Товар для себя">
-      <button class="qa-add droplet" onclick="quickAddSelf()">+ Добавить</button>
+  <div class="quickadd card">
+    <div class="qa-field">
+      <input id="qa-self-name" placeholder="Товар для себя">
     </div>
+    <button class="qa-add press" onclick="quickAddSelf()">+ Добавить</button>
     <div class="qa-hint">Без наценки и комиссии — только себестоимость.</div>
   </div>
   <div id="selfList"></div>
@@ -345,23 +280,23 @@ h1{ font-size:21px; margin:4px 2px 2px; font-weight:750; letter-spacing:-.02em; 
 
 <!-- ===================== STATS TAB ===================== -->
 <div id="tab-stats" style="display:none">
-  <div class="glass big-stat">
+  <div class="card big-stat">
     <div class="n" id="statTotalProfit">0 ₽</div>
     <div class="l">Прибыль за всё время</div>
   </div>
   <div class="stat-grid">
-    <div class="glass stat-card"><div class="v" id="statPerPerson">0 ₽</div><div class="l">На каждого (÷2)</div></div>
-    <div class="glass stat-card"><div class="v" id="statOrdersCount">0</div><div class="l">Оплаченных позиций</div></div>
-    <div class="glass stat-card"><div class="v" id="statMonthProfit">0 ₽</div><div class="l">Прибыль за 30 дней</div></div>
-    <div class="glass stat-card"><div class="v" id="statAvgCheck">0 ₽</div><div class="l">Средний чек</div></div>
+    <div class="card stat-card"><div class="v" id="statPerPerson">0 ₽</div><div class="l">На каждого (÷2)</div></div>
+    <div class="card stat-card"><div class="v" id="statOrdersCount">0</div><div class="l">Оплаченных позиций</div></div>
+    <div class="card stat-card"><div class="v" id="statMonthProfit">0 ₽</div><div class="l">Прибыль за 30 дней</div></div>
+    <div class="card stat-card"><div class="v" id="statAvgCheck">0 ₽</div><div class="l">Средний чек</div></div>
   </div>
-  <div class="subtitle" style="margin-top:10px;">По заказам</div>
+  <div class="subtitle" style="margin-top:10px;">По клиентам</div>
   <div id="statsOrdersList"></div>
 </div>
 
 <!-- ===================== SETTINGS TAB ===================== -->
 <div id="tab-settings" style="display:none">
-  <div class="glass settings-panel">
+  <div class="card settings-panel">
     <h3>Комиссия</h3>
     <div class="set-grid">
       <div class="set-field"><label>Минимум, 1-я позиция ₽</label><input type="number" id="s-min1" value="1000"></div>
@@ -370,7 +305,7 @@ h1{ font-size:21px; margin:4px 2px 2px; font-weight:750; letter-spacing:-.02em; 
       <div class="set-field"><label>% от себест., 2+ позиция</label><input type="number" id="s-pct2" value="12"></div>
     </div>
   </div>
-  <div class="glass settings-panel">
+  <div class="card settings-panel">
     <h3>Доставка и прочее</h3>
     <div class="set-grid">
       <div class="set-field"><label>Ориентир межд. доставки, ₽/кг</label><input type="number" id="s-intlrate" value="610"></div>
@@ -378,11 +313,11 @@ h1{ font-size:21px; margin:4px 2px 2px; font-weight:750; letter-spacing:-.02em; 
       <div class="set-field"><label>Порог растаможки, €</label><input type="number" id="s-customs-th" value="200"></div>
       <div class="set-field"><label>Пошлина база, ₽</label><input type="number" id="s-customs-base" value="500"></div>
       <div class="set-field"><label>Пошлина, % от превышения</label><input type="number" id="s-customs-pct" value="15"></div>
-      <div class="set-field"><label>Курс € (ручной, для растаможки)</label><input type="number" id="s-eur" value="105"></div>
+      <div class="set-field"><label>Курс € (ручной)</label><input type="number" id="s-eur" value="105"></div>
     </div>
   </div>
-  <button class="pp-apply droplet" style="width:100%;padding:12px;" onclick="saveSettings()">Сохранить настройки</button>
-  <div class="qa-hint" style="text-align:center;margin-top:10px;">Данные хранятся в этом браузере (localStorage). Синхронизацию между устройствами добавим отдельным шагом.</div>
+  <button class="pp-apply press" onclick="saveSettings()">Сохранить настройки</button>
+  <div class="qa-hint" style="text-align:center;margin-top:10px;">Данные хранятся в этом браузере. Синхронизацию между устройствами добавим отдельным шагом.</div>
 </div>
 
 <!-- ===================== RECEIPT MODAL ===================== -->
@@ -396,8 +331,8 @@ h1{ font-size:21px; margin:4px 2px 2px; font-weight:750; letter-spacing:-.02em; 
     <div id="rcLines"></div>
     <div class="receipt-total"><span>Итого</span><span id="rcTotal">0 ₽</span></div>
     <div class="receipt-actions">
-      <button class="copy" onclick="copyReceipt()">Скопировать текст</button>
-      <button class="close" onclick="closeReceipt()">Закрыть</button>
+      <button class="copy press" onclick="copyReceipt()">Скопировать текст</button>
+      <button class="close press" onclick="closeReceipt()">Закрыть</button>
     </div>
   </div>
 </div>
@@ -434,7 +369,6 @@ function save(){
   localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
 }
 function saveSettingsState(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
-
 function uid(){ return Math.random().toString(36).slice(2,10); }
 
 /* ============ CALC ENGINE ============ */
@@ -445,12 +379,12 @@ function costBasis(it){
   return py * qty * rate;
 }
 function isFirstForClientInPurchase(it){
-  const siblings = items.filter(x=>x.client===it.client && x.purchaseTag===it.purchaseTag && x.type!=='self')
+  const siblings = items.filter(x=>x.client===it.client && x.purchaseTag===it.purchaseTag && x.kind!=='self')
                          .sort((a,b)=>a.createdAt-b.createdAt);
   return siblings.length ? siblings[0].id === it.id : true;
 }
 function computeCommission(it){
-  if(it.commissionOverride !== null && it.commissionOverride !== undefined && it.commissionOverride !== '') {
+  if(it.commissionOverride !== '' && it.commissionOverride !== null && it.commissionOverride !== undefined){
     return parseFloat(it.commissionOverride);
   }
   const cb = costBasis(it);
@@ -462,8 +396,7 @@ function computeCommission(it){
 }
 function computeInsurance(it){
   if(!it.insuranceOn) return 0;
-  const cb = costBasis(it);
-  return cb * (settings.insPct/100);
+  return costBasis(it) * (settings.insPct/100);
 }
 function computeCustoms(it){
   const cb = costBasis(it);
@@ -472,47 +405,34 @@ function computeCustoms(it){
   if(eur <= settings.customsTh) return 0;
   return settings.customsBase + (eur - settings.customsTh) * settings.eurRate * (settings.customsPct/100);
 }
-function totalDelivery(it){
-  return (parseFloat(it.deliveryIntl)||0) + (parseFloat(it.deliveryRf)||0);
-}
+function totalDelivery(it){ return (parseFloat(it.deliveryIntl)||0) + (parseFloat(it.deliveryRf)||0); }
 function clientPrice(it){
   const cb = costBasis(it);
   const comm = computeCommission(it);
   if(!cb || comm===null) return null;
   return cb + totalDelivery(it) + computeInsurance(it) + computeCustoms(it) + comm;
 }
-function profit(it){
-  const comm = computeCommission(it);
-  return comm===null ? null : comm;
-}
+function profit(it){ return computeCommission(it); }
+function deriveStatus(it){ return it.stage || 'draft'; }
 
-/* ============ STATUS ============ */
-function deriveStatus(it){
-  if(it.stage) return it.stage;
-  return 'draft';
-}
-function stageBadgeClass(k){
-  if(k==='draft') return 'draft';
-  if(k==='paid'||k==='bought') return 'wait';
-  if(k==='delivered') return 'paid';
-  return 'ready';
-}
-
-/* ============ RENDER: quick add client select ============ */
+/* ============ CLIENT SELECT REFRESH ============ */
 function refreshClientSelect(){
   const sel = document.getElementById('qa-client');
+  const prev = sel.value;
   sel.innerHTML = '<option value="">Клиент…</option>' +
-    clients.map(c=>`<option value="${c}">${c}</option>`).join('') +
+    clients.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') +
     '<option value="__self__">Себе</option>';
+  sel.value = prev;
 
   const ppTag = document.getElementById('pp-tag');
   const tags = [...new Set(items.filter(i=>i.purchaseTag).map(i=>i.purchaseTag))];
-  ppTag.innerHTML = tags.length ? tags.map(t=>`<option value="${t}">${t}</option>`).join('') : '<option value="">— нет закупок —</option>';
+  ppTag.innerHTML = tags.length ? tags.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('') : '<option value="">— нет закупок —</option>';
 }
 
 /* ============ QUICK ADD ============ */
 function quickAdd(){
-  const name = document.getElementById('qa-name').value.trim();
+  const nameEl = document.getElementById('qa-name');
+  const name = nameEl.value.trim();
   if(!name) return;
   let client = document.getElementById('qa-client').value;
   const newClient = document.getElementById('qa-newclient').value.trim();
@@ -522,22 +442,23 @@ function quickAdd(){
   const it = blankItem(name, client||'', client==='Себе'?'self':'order');
   items.unshift(it);
   save();
-  document.getElementById('qa-name').value='';
+  nameEl.value='';
   document.getElementById('qa-newclient').value='';
   document.getElementById('qa-client').value='';
   refreshClientSelect();
   openId = it.id;
-  render();
+  renderList();
 }
 function quickAddSelf(){
-  const name = document.getElementById('qa-self-name').value.trim();
+  const nameEl = document.getElementById('qa-self-name');
+  const name = nameEl.value.trim();
   if(!name) return;
   const it = blankItem(name, 'Себе', 'self');
   items.unshift(it);
   save();
-  document.getElementById('qa-self-name').value='';
+  nameEl.value='';
   openId = it.id;
-  render();
+  renderSelf();
 }
 function blankItem(name, client, kind){
   return {
@@ -549,39 +470,38 @@ function blankItem(name, client, kind){
   };
 }
 
-/* ============ ITEM CARD RENDER ============ */
-function sizeOptionsFor(type){
+/* ============ SIZE OPTIONS ============ */
+function sizeOptionsFor(type, current){
   if(type==='shoes'){
-    let o=[]; for(let s=35;s<=48;s++) o.push(s);
-    return o.map(s=>`<option value="${s}">${s}</option>`).join('');
+    let o=[]; for(let s=35;s<=48;s++) o.push(String(s));
+    return o.map(s=>`<option value="${s}" ${String(current)===s?'selected':''}>${s}</option>`).join('');
   }
   if(type==='clothing'){
-    return ['XS','S','M','L','XL','XXL','3XL','4XL'].map(s=>`<option value="${s}">${s}</option>`).join('');
+    return ['XS','S','M','L','XL','XXL','3XL','4XL'].map(s=>`<option value="${s}" ${current===s?'selected':''}>${s}</option>`).join('');
   }
   return '';
 }
 
+/* ============ ITEM CARD RENDER ============ */
 function itemCardHTML(it){
   const cb = costBasis(it);
   const comm = computeCommission(it);
   const cp = clientPrice(it);
   const stIdx = STAGE_INDEX(deriveStatus(it));
   const isOpen = openId === it.id;
-
   const dots = STAGES.map((s,i)=>`<div class="dot ${i<=stIdx?'done':''}"></div>`).join('');
-
   const tagsLine = [it.client||'без клиента', it.purchaseTag||'без закупки'].join(' · ');
 
   return `
-  <div class="item glass ${isOpen?'open':''}" data-id="${it.id}">
+  <div class="item card ${isOpen?'open':''}" data-id="${it.id}">
     <div class="item-head" onclick="toggleOpen('${it.id}')">
       <div>
         <div class="item-name">${escapeHtml(it.name)}</div>
-        <div class="item-tags">${escapeHtml(tagsLine)}</div>
-        <div class="progress">${dots}</div>
+        <div class="item-tags" data-role="tags">${escapeHtml(tagsLine)}</div>
+        <div class="progress" data-role="progress">${dots}</div>
       </div>
       <div class="item-right">
-        <span class="item-profit ${comm===null?'na':''}">${comm===null?'—':'+'+fmt(comm)+' ₽'}</span>
+        <span class="item-profit ${comm===null?'na':''}" data-role="profit">${comm===null?'—':'+'+fmt(comm)+' ₽'}</span>
         <span class="chev">▸</span>
       </div>
     </div>
@@ -589,85 +509,160 @@ function itemCardHTML(it){
       <div class="field-grid">
         <div class="field">
           <label>Тип</label>
-          <select onchange="updateField('${it.id}','type',this.value)">
+          <select data-field="type">
             <option value="shoes" ${it.type==='shoes'?'selected':''}>Обувь</option>
             <option value="clothing" ${it.type==='clothing'?'selected':''}>Одежда</option>
             <option value="accessory" ${it.type==='accessory'?'selected':''}>Аксессуар</option>
           </select>
         </div>
-        <div class="field">
+        <div class="field" data-role="size-wrap">
           <label>Размер</label>
           ${it.type==='accessory'
             ? `<input disabled placeholder="—">`
-            : `<select onchange="updateField('${it.id}','size',this.value)">
-                 <option value="">—</option>
-                 ${sizeOptionsFor(it.type)}
-               </select>`
+            : `<select data-field="size"><option value="">—</option>${sizeOptionsFor(it.type, it.size)}</select>`
           }
         </div>
-        <div class="field"><label>Кол-во</label><input type="number" value="${it.qty}" oninput="updateField('${it.id}','qty',this.value)"></div>
-        <div class="field"><label>Цена, ¥/шт</label><input type="number" value="${it.priceYuan}" placeholder="—" oninput="updateField('${it.id}','priceYuan',this.value)"></div>
-        <div class="field"><label>Вес, кг</label><input type="number" step="0.01" value="${it.weightKg}" placeholder="узнать" oninput="updateField('${it.id}','weightKg',this.value)"></div>
-        <div class="field"><label>Курс себестоимости</label><input type="number" step="0.01" value="${it.rateCost}" placeholder="в моменте" oninput="updateField('${it.id}','rateCost',this.value)"></div>
-        <div class="field"><label>Клиент</label><input type="text" value="${it.client}" placeholder="имя" oninput="updateField('${it.id}','client',this.value)"></div>
-        <div class="field"><label>Закупка (тег)</label><input type="text" value="${it.purchaseTag}" placeholder="напр. закупка #12" oninput="updateField('${it.id}','purchaseTag',this.value)"></div>
-        <div class="field"><label>Межд. доставка, ₽ (доля)</label><input type="number" value="${it.deliveryIntl}" placeholder="авто/вручную" oninput="updateField('${it.id}','deliveryIntl',this.value)"></div>
-        <div class="field"><label>Доставка РФ, ₽ (доля)</label><input type="number" value="${it.deliveryRf}" placeholder="авто/вручную" oninput="updateField('${it.id}','deliveryRf',this.value)"></div>
+        <div class="field"><label>Кол-во</label><input type="number" data-field="qty" value="${it.qty}"></div>
+        <div class="field"><label>Цена, ¥/шт</label><input type="number" data-field="priceYuan" value="${it.priceYuan}" placeholder="—"></div>
+        <div class="field"><label>Вес, кг</label><input type="number" step="0.01" data-field="weightKg" value="${it.weightKg}" placeholder="узнать"></div>
+        <div class="field"><label>Курс себестоимости</label><input type="number" step="0.01" data-field="rateCost" value="${it.rateCost}" placeholder="в моменте"></div>
+        <div class="field"><label>Клиент</label><input type="text" data-field="client" value="${escapeAttr(it.client)}" placeholder="имя"></div>
+        <div class="field"><label>Закупка (тег)</label><input type="text" data-field="purchaseTag" value="${escapeAttr(it.purchaseTag)}" placeholder="напр. закупка #12"></div>
+        <div class="field"><label>Межд. доставка, ₽ (доля)</label><input type="number" data-field="deliveryIntl" value="${it.deliveryIntl}" placeholder="авто/вручную"></div>
+        <div class="field"><label>Доставка РФ, ₽ (доля)</label><input type="number" data-field="deliveryRf" value="${it.deliveryRf}" placeholder="авто/вручную"></div>
         <div class="field"><label>Страховка</label>
-          <select onchange="updateField('${it.id}','insuranceOn',this.value==='1')">
+          <select data-field="insuranceOn">
             <option value="1" ${it.insuranceOn?'selected':''}>Вкл · ${settings.insPct}%</option>
             <option value="0" ${!it.insuranceOn?'selected':''}>Выкл</option>
           </select>
         </div>
-        <div class="field"><label>Комиссия override, ₽</label><input type="number" value="${it.commissionOverride}" placeholder="авто по формуле" oninput="updateField('${it.id}','commissionOverride',this.value)"></div>
+        <div class="field"><label>Комиссия override, ₽</label><input type="number" data-field="commissionOverride" value="${it.commissionOverride}" placeholder="авто по формуле"></div>
       </div>
 
       ${it.kind!=='self' ? `
-      <div class="summary-box">
-        <div class="row"><span>Себестоимость</span><span>${cb?fmt(cb)+' ₽':'—'}</span></div>
-        <div class="row"><span>Доставка (межд.+РФ)</span><span>${fmt(totalDelivery(it))} ₽</span></div>
-        <div class="row"><span>Страховка</span><span>${fmt(computeInsurance(it))} ₽</span></div>
-        <div class="row"><span>Растаможка</span><span>${computeCustoms(it)>0?fmt(computeCustoms(it))+' ₽':'—'}</span></div>
-        <div class="row"><span>Комиссия</span><span>${comm!==null?fmt(comm)+' ₽':'—'}</span></div>
-        <div class="row total"><span>Клиенту итого</span><span>${cp!==null?fmt(cp)+' ₽':'—'}</span></div>
+      <div class="summary-box" data-role="summary">
+        <div class="row"><span>Себестоимость</span><span data-sum="cb">${cb?fmt(cb)+' ₽':'—'}</span></div>
+        <div class="row"><span>Доставка (межд.+РФ)</span><span data-sum="deliv">${fmt(totalDelivery(it))} ₽</span></div>
+        <div class="row"><span>Страховка</span><span data-sum="ins">${fmt(computeInsurance(it))} ₽</span></div>
+        <div class="row"><span>Растаможка</span><span data-sum="cust">${computeCustoms(it)>0?fmt(computeCustoms(it))+' ₽':'—'}</span></div>
+        <div class="row"><span>Комиссия</span><span data-sum="comm">${comm!==null?fmt(comm)+' ₽':'—'}</span></div>
+        <div class="row total"><span>Клиенту итого</span><span data-sum="total">${cp!==null?fmt(cp)+' ₽':'—'}</span></div>
       </div>` : `
-      <div class="summary-box">
-        <div class="row total"><span>Себестоимость (без наценки)</span><span>${cb?fmt(cb)+' ₽':'—'}</span></div>
+      <div class="summary-box" data-role="summary">
+        <div class="row total"><span>Себестоимость (без наценки)</span><span data-sum="selfcb">${cb?fmt(cb)+' ₽':'—'}</span></div>
       </div>`}
 
-      <div class="progress-row">
-        ${STAGES.map(s=>`<div class="pstage ${it.stage===s.k?'selected':''}" onclick="setStage('${it.id}','${s.k}')">${s.l}</div>`).join('')}
+      <div class="progress-row" data-role="stages">
+        ${STAGES.map(s=>`<div class="pstage ${it.stage===s.k?'selected':''}" data-stage="${s.k}">${s.l}</div>`).join('')}
       </div>
 
       <div class="item-actions">
-        ${it.kind!=='self' ? `<button class="mini-btn receipt droplet" onclick="openReceipt('${it.client}')">🧾 Чек клиенту</button>` : ''}
-        <button class="mini-btn danger droplet" onclick="deleteItem('${it.id}')">Удалить</button>
+        ${it.kind!=='self' ? `<button class="mini-btn receipt press" data-action="receipt">🧾 Чек клиенту</button>` : ''}
+        <button class="mini-btn danger press" data-action="delete">Удалить</button>
       </div>
     </div>
   </div>`;
 }
 
-function toggleOpen(id){ openId = (openId===id) ? null : id; render(); }
-function updateField(id, field, value){
+function toggleOpen(id){
+  openId = (openId===id) ? null : id;
+  const el = document.querySelector(`.item[data-id="${id}"]`);
+  if(el) el.classList.toggle('open');
+}
+
+/* ============ LIGHTWEIGHT FIELD UPDATE (no full re-render — keeps focus) ============ */
+function handleFieldInput(e){
+  const el = e.target.closest('[data-field]');
+  if(!el) return;
+  const card = el.closest('.item');
+  const id = card.dataset.id;
   const it = items.find(i=>i.id===id);
   if(!it) return;
-  if(field==='insuranceOn'){ it[field]=value; } else { it[field]=value; }
-  if(field==='client' && value && !clients.includes(value)) clients.push(value);
+  const field = el.dataset.field;
+  let value = el.value;
+  if(field==='insuranceOn') value = value==='1';
+
+  it[field] = value;
+
+  if(field==='client' && value && !clients.includes(value)){
+    clients.push(value);
+    refreshClientSelect();
+  }
   save();
-  renderList(); // keep card open, avoid full re-render flicker but refresh numbers
-  refreshClientSelect();
+
+  if(field==='type'){
+    // size options depend on type — rebuild just the size field, nothing else
+    const wrap = card.querySelector('[data-role="size-wrap"]');
+    wrap.innerHTML = `<label>Размер</label>` + (it.type==='accessory'
+      ? `<input disabled placeholder="—">`
+      : `<select data-field="size"><option value="">—</option>${sizeOptionsFor(it.type, it.size)}</select>`);
+    it.size = '';
+  }
+
+  refreshCardComputed(card, it);
+  refreshStatChips();
 }
-function setStage(id, stage){
-  const it = items.find(i=>i.id===id);
-  if(!it) return;
-  it.stage = stage;
-  save();
-  render();
+
+function refreshCardComputed(card, it){
+  const cb = costBasis(it);
+  const comm = computeCommission(it);
+  const cp = clientPrice(it);
+
+  const profitEl = card.querySelector('[data-role="profit"]');
+  if(profitEl){
+    profitEl.textContent = comm===null ? '—' : '+'+fmt(comm)+' ₽';
+    profitEl.classList.toggle('na', comm===null);
+  }
+  const tagsEl = card.querySelector('[data-role="tags"]');
+  if(tagsEl) tagsEl.textContent = [it.client||'без клиента', it.purchaseTag||'без закупки'].join(' · ');
+
+  const stIdx = STAGE_INDEX(deriveStatus(it));
+  const progEl = card.querySelector('[data-role="progress"]');
+  if(progEl) progEl.innerHTML = STAGES.map((s,i)=>`<div class="dot ${i<=stIdx?'done':''}"></div>`).join('');
+
+  if(it.kind!=='self'){
+    setText(card,'[data-sum="cb"]', cb?fmt(cb)+' ₽':'—');
+    setText(card,'[data-sum="deliv"]', fmt(totalDelivery(it))+' ₽');
+    setText(card,'[data-sum="ins"]', fmt(computeInsurance(it))+' ₽');
+    const cust = computeCustoms(it);
+    setText(card,'[data-sum="cust"]', cust>0?fmt(cust)+' ₽':'—');
+    setText(card,'[data-sum="comm"]', comm!==null?fmt(comm)+' ₽':'—');
+    setText(card,'[data-sum="total"]', cp!==null?fmt(cp)+' ₽':'—');
+  } else {
+    setText(card,'[data-sum="selfcb"]', cb?fmt(cb)+' ₽':'—');
+  }
 }
-function deleteItem(id){
-  items = items.filter(i=>i.id!==id);
-  save();
-  render();
+function setText(root, sel, text){ const el = root.querySelector(sel); if(el) el.textContent = text; }
+
+/* ============ CLICK DELEGATION (stage change, delete, receipt) ============ */
+function handleCardClick(e){
+  const stageEl = e.target.closest('[data-stage]');
+  if(stageEl){
+    const card = stageEl.closest('.item');
+    const it = items.find(i=>i.id===card.dataset.id);
+    it.stage = stageEl.dataset.stage;
+    save();
+    card.querySelectorAll('[data-stage]').forEach(p=>p.classList.toggle('selected', p.dataset.stage===it.stage));
+    refreshCardComputed(card, it);
+    refreshStatChips();
+    return;
+  }
+  const actionEl = e.target.closest('[data-action]');
+  if(actionEl){
+    const card = actionEl.closest('.item');
+    const id = card.dataset.id;
+    if(actionEl.dataset.action==='delete'){
+      items = items.filter(i=>i.id!==id);
+      save();
+      renderList(); renderSelf();
+      return;
+    }
+    if(actionEl.dataset.action==='receipt'){
+      const it = items.find(i=>i.id===id);
+      openReceipt(it.client);
+      return;
+    }
+  }
 }
 
 /* ============ PURCHASE SPLIT ============ */
@@ -686,7 +681,7 @@ function applyPurchaseSplit(){
     if(rfTotal) i.deliveryRf = Math.round(rfTotal*share);
   });
   save();
-  render();
+  renderList();
 }
 
 /* ============ RECEIPT ============ */
@@ -701,7 +696,7 @@ function openReceipt(client){
     const cp = clientPrice(it) || 0;
     total += cp;
     return `<div class="receipt-line">
-      <div><div class="nm">${escapeHtml(it.name)}</div><div class="sub">${it.size?('размер '+it.size+' · '):''}${it.qty} шт</div></div>
+      <div><div class="nm">${escapeHtml(it.name)}</div><div class="sub">${it.size?('размер '+escapeHtml(it.size)+' · '):''}${it.qty} шт</div></div>
       <div>${fmt(cp)} ₽</div>
     </div>`;
   }).join('') || '<div class="empty">Нет позиций</div>';
@@ -735,10 +730,10 @@ function setFilter(f){
 function filteredItems(){
   let list = items.filter(i=>i.kind!=='self');
   if(currentFilter==='draft') list = list.filter(i=>deriveStatus(i)==='draft');
-  if(currentFilter==='wait') list = list.filter(i=> !it_hasRate(i));
+  if(currentFilter==='wait') list = list.filter(i=>!itHasRate(i));
   return list;
 }
-function it_hasRate(i){ return i.rateCost !== '' && i.rateCost !== null && i.rateCost !== undefined; }
+function itHasRate(i){ return i.rateCost !== '' && i.rateCost !== null && i.rateCost !== undefined; }
 
 function renderList(){
   const list = filteredItems();
@@ -755,12 +750,16 @@ function renderList(){
   } else {
     el.innerHTML = list.length ? list.map(itemCardHTML).join('') : `<div class="empty">Пока пусто — добавь первую позицию сверху</div>`;
   }
+  refreshStatChips();
+}
 
-  // stat chips
+function refreshStatChips(){
   const paidComm = items.filter(i=>i.kind!=='self' && i.stage==='delivered').reduce((s,i)=>s+(profit(i)||0),0);
-  const waitCount = items.filter(i=>i.kind!=='self' && !it_hasRate(i)).length;
+  const waitCount = items.filter(i=>i.kind!=='self' && !itHasRate(i)).length;
   const draftCount = items.filter(i=>i.kind!=='self' && deriveStatus(i)==='draft').length;
-  document.getElementById('orderStats').innerHTML = `
+  const el = document.getElementById('orderStats');
+  if(!el) return;
+  el.innerHTML = `
     <div class="chip"><div class="l">Прибыль (доставлено)</div><div class="v good">${fmt(paidComm)} ₽</div></div>
     <div class="chip"><div class="l">На каждого</div><div class="v">${fmt(paidComm/2)} ₽</div></div>
     <div class="chip"><div class="l">Ждут курс</div><div class="v warn">${waitCount}</div></div>
@@ -795,7 +794,7 @@ function renderStats(){
     byClient[k].count += 1;
   });
   document.getElementById('statsOrdersList').innerHTML = Object.keys(byClient).map(k=>`
-    <div class="glass order-row">
+    <div class="card order-row">
       <div><div class="name">${escapeHtml(k)}</div><div class="meta">${byClient[k].count} поз.</div></div>
       <div class="p">+${fmt(byClient[k].profit)} ₽</div>
     </div>
@@ -829,7 +828,7 @@ function saveSettings(){
     eurRate: parseFloat(document.getElementById('s-eur').value)||0,
   };
   saveSettingsState();
-  render();
+  renderList();
   const btn = event.target;
   const old = btn.textContent; btn.textContent='Сохранено ✓';
   setTimeout(()=>btn.textContent=old, 1200);
@@ -838,6 +837,7 @@ function saveSettings(){
 /* ============ UTIL ============ */
 function fmt(n){ return Math.round(n||0).toLocaleString('ru-RU'); }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s); }
 
 /* ============ TABS ============ */
 document.getElementById('tabs').addEventListener('click', e=>{
@@ -855,27 +855,21 @@ document.getElementById('tabs').addEventListener('click', e=>{
 document.getElementById('viewbar').addEventListener('click', e=>{
   const b = e.target.closest('.viewbtn');
   if(!b) return;
-  document.querySelectorAll('.viewbtn').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');
   setFilter(b.dataset.f);
 });
 
-/* ============ droplet ripple origin ============ */
-document.addEventListener('pointerdown', e=>{
-  const el = e.target.closest('.droplet');
-  if(!el) return;
-  const r = el.getBoundingClientRect();
-  el.style.setProperty('--rx', ((e.clientX-r.left)/r.width*100)+'%');
-  el.style.setProperty('--ry', ((e.clientY-r.top)/r.height*100)+'%');
-  el.classList.add('rippling');
-  setTimeout(()=>el.classList.remove('rippling'), 450);
+/* ============ GLOBAL DELEGATION ON LISTS (survives re-renders, never re-bound per card) ============ */
+['itemsList','selfList'].forEach(id=>{
+  const root = document.getElementById(id);
+  root.addEventListener('input', handleFieldInput);
+  root.addEventListener('change', handleFieldInput);
+  root.addEventListener('click', handleCardClick);
 });
 
 /* ============ INIT ============ */
-function render(){ renderList(); }
 refreshClientSelect();
 loadSettingsUI();
-render();
+renderList();
 </script>
 </body>
 </html>
