@@ -1,0 +1,4 @@
+server/.env
+server/data/
+server/__pycache__/
+

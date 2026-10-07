@@ -431,14 +431,10 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
   <div class="card settings-panel">
     <h3>☁️ Синхронизация (телефон ↔ ноутбук)</h3>
     <div class="qa-hint" style="margin:0 0 10px;">
-      Бесплатно через Supabase (5 минут один раз). На <a href="https://supabase.com" target="_blank" style="color:var(--blue)">supabase.com</a> → New project → в SQL Editor выполнить:<br>
-      <code style="display:block;background:#f5f5f7;padding:8px;border-radius:8px;margin:6px 0;font-size:11px;white-space:pre-wrap;">create table poizon_workspaces (id text primary key, data jsonb not null, updated_at timestamptz default now());
-alter table poizon_workspaces enable row level security;
-create policy "rw" on poizon_workspaces for all using (true) with check (true);</code>
-      Затем Project Settings → API → скопировать Project URL и anon public key сюда. Придумай свой «код рабочего пространства» (любое слово) и введи его на ОБОИХ устройствах одинаково.
+      Данные хранятся на личном сервере и остаются локально в браузере как резервная копия. На телефоне и ноутбуке введи одинаковые адрес, ключ и код рабочего пространства.
     </div>
-    <div class="qa-field"><input id="s-sync-url" placeholder="Project URL (https://xxxx.supabase.co)"></div>
-    <div class="qa-field" style="margin-top:8px;"><input id="s-sync-key" placeholder="anon public key"></div>
+    <div class="qa-field"><input id="s-sync-url" value="https://prvrt.ru/poizon-sync" placeholder="Адрес сервера"></div>
+    <div class="qa-field" style="margin-top:8px;"><input type="password" id="s-sync-key" placeholder="Секретный ключ синхронизации"></div>
     <div class="qa-field" style="margin-top:8px;"><input id="s-sync-workspace" placeholder="код рабочего пространства"></div>
     <div class="pp-row" style="margin-top:10px;">
       <button class="pp-apply press" style="flex:1;" onclick="connectSync()">Подключить</button>
@@ -488,7 +484,6 @@ create policy "rw" on poizon_workspaces for all using (true) with check (true);<
   <div class="receipt-paper" id="printPaper"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script>
 /* ============ STATE ============ */
 const STORAGE_KEY = 'poizon_items_v1';
@@ -529,9 +524,9 @@ function saveSettingsState(){
 }
 function uid(){ return Math.random().toString(36).slice(2,10); }
 
-/* ============ CLOUD SYNC (Supabase) ============ */
-const SYNC_CONFIG_KEY = 'poizon_sync_config_v1';
-let syncClient = null;
+/* ============ SERVER SYNC ============ */
+const SYNC_CONFIG_KEY = 'poizon_server_sync_config_v1';
+const DEFAULT_SYNC_URL = 'https://prvrt.ru/poizon-sync';
 let syncConfig = JSON.parse(localStorage.getItem(SYNC_CONFIG_KEY) || 'null');
 let pushTimer = null;
 let syncing = false;
@@ -541,33 +536,54 @@ function setSyncStatus(text){
   if(el) el.textContent = text;
 }
 
-function buildSyncClient(){
-  if(!syncConfig || !syncConfig.url || !syncConfig.key) return null;
-  if(!window.supabase){ setSyncStatus('Библиотека синхронизации не загрузилась — проверь интернет и обнови страницу.'); return null; }
+function normalizeSyncUrl(url){ return String(url||'').trim().replace(/\/+$/,''); }
+function workspacePath(){ return '/workspaces/' + encodeURIComponent(syncConfig.workspace); }
+function syncErrorText(error){
+  if(error && error.name==='AbortError') return 'Сервер не ответил вовремя. Локальные данные сохранены.';
+  if(error instanceof TypeError) return 'Не удалось связаться с сервером. Проверь интернет и адрес синхронизации.';
+  return error && error.message ? error.message : 'Неизвестная ошибка';
+}
+
+async function syncRequest(path, options={}){
+  if(!syncConfig || !syncConfig.url || !syncConfig.key) throw new Error('Не заполнены настройки синхронизации.');
+  const controller = new AbortController();
+  const timeout = setTimeout(()=>controller.abort(), 15000);
   try{
-    return window.supabase.createClient(syncConfig.url, syncConfig.key);
-  }catch(e){ return null; }
+    const response = await fetch(syncConfig.url + path, {
+      ...options,
+      signal:controller.signal,
+      headers:{
+        'Authorization':'Bearer ' + syncConfig.key,
+        'Content-Type':'application/json',
+        ...(options.headers||{})
+      }
+    });
+    let body = null;
+    try{ body = await response.json(); }catch(e){}
+    if(response.status===404) return null;
+    if(!response.ok) throw new Error((body && body.error) || `Ошибка сервера ${response.status}`);
+    return body;
+  }finally{
+    clearTimeout(timeout);
+  }
 }
 
 function connectSync(){
-  const url = document.getElementById('s-sync-url').value.trim();
+  const url = normalizeSyncUrl(document.getElementById('s-sync-url').value);
   const key = document.getElementById('s-sync-key').value.trim();
   const workspace = document.getElementById('s-sync-workspace').value.trim();
   if(!url || !key || !workspace){ alert('Заполни все три поля: URL, ключ и код рабочего пространства.'); return; }
   syncConfig = { url, key, workspace };
   localStorage.setItem(SYNC_CONFIG_KEY, JSON.stringify(syncConfig));
-  syncClient = buildSyncClient();
-  if(!syncClient) return;
   setSyncStatus('Подключаемся…');
   pullFromCloud(true);
 }
 
 function disconnectSync(){
-  if(!confirm('Отключить синхронизацию на этом устройстве? Данные в облаке останутся, просто это устройство перестанет их получать.')) return;
+  if(!confirm('Отключить синхронизацию на этом устройстве? Данные на сервере останутся, а локальные записи не удалятся.')) return;
   syncConfig = null;
-  syncClient = null;
   localStorage.removeItem(SYNC_CONFIG_KEY);
-  document.getElementById('s-sync-url').value = '';
+  document.getElementById('s-sync-url').value = DEFAULT_SYNC_URL;
   document.getElementById('s-sync-key').value = '';
   document.getElementById('s-sync-workspace').value = '';
   setSyncStatus('Не подключено — данные только в этом браузере.');
@@ -581,43 +597,30 @@ function schedulePush(){
 
 async function pushToCloud(){
   if(!syncConfig) return;
-  if(!syncClient) syncClient = buildSyncClient();
-  if(!syncClient) return;
   syncing = true;
   setSyncStatus('Синхронизация…');
   try{
     const payload = { items, clients, settings };
-    const { error } = await syncClient
-      .from('poizon_workspaces')
-      .upsert({ id: syncConfig.workspace, data: payload, updated_at: new Date().toISOString() });
-    if(error){ setSyncStatus('Ошибка синхронизации: ' + error.message); }
-    else{ setSyncStatus('Синхронизировано ' + new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})); }
+    await syncRequest(workspacePath(), { method:'PUT', body:JSON.stringify({ data:payload }) });
+    setSyncStatus('Синхронизировано ' + new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){
-    setSyncStatus('Нет связи с облаком — изменения сохранены только локально.');
+    setSyncStatus('Ошибка синхронизации: ' + syncErrorText(e));
   }
   syncing = false;
 }
 
 async function pullFromCloud(isInitialConnect){
   if(!syncConfig) return;
-  if(!syncClient) syncClient = buildSyncClient();
-  if(!syncClient) return;
   setSyncStatus('Загружаем данные…');
   try{
-    const { data, error } = await syncClient
-      .from('poizon_workspaces')
-      .select('data, updated_at')
-      .eq('id', syncConfig.workspace)
-      .maybeSingle();
-    if(error){ setSyncStatus('Ошибка загрузки: ' + error.message); return; }
+    const data = await syncRequest(workspacePath());
     if(!data){
-      // workspace doesn't exist yet — create it from whatever is on this device right now
       await pushToCloud();
       setSyncStatus('Рабочее пространство создано, устройство подключено ✓');
       return;
     }
     if(isInitialConnect){
-      const useRemote = confirm('В облаке уже есть сохранённые данные для этого кода. Загрузить их на это устройство? (текущие локальные данные будут заменены)\n\nОК — взять из облака\nОтмена — оставить как есть на этом устройстве и залить их в облако');
+      const useRemote = confirm('На сервере уже есть данные для этого кода. Загрузить их на это устройство? (текущие локальные данные будут заменены)\n\nОК — взять с сервера\nОтмена — оставить данные этого устройства и отправить их на сервер');
       if(useRemote){
         applyRemoteData(data.data);
       } else {
@@ -628,7 +631,7 @@ async function pullFromCloud(isInitialConnect){
     }
     setSyncStatus('Синхронизировано ' + new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}));
   }catch(e){
-    setSyncStatus('Нет связи с облаком — работаем локально.');
+    setSyncStatus('Ошибка загрузки: ' + syncErrorText(e));
   }
 }
 
@@ -653,12 +656,14 @@ function syncNow(){
 }
 
 function initSyncUI(){
-  if(!syncConfig) return;
+  if(!syncConfig){
+    document.getElementById('s-sync-url').value = DEFAULT_SYNC_URL;
+    return;
+  }
   document.getElementById('s-sync-url').value = syncConfig.url;
   document.getElementById('s-sync-key').value = syncConfig.key;
   document.getElementById('s-sync-workspace').value = syncConfig.workspace;
-  syncClient = buildSyncClient();
-  if(syncClient) pullFromCloud(false);
+  pullFromCloud(false);
 }
 
 /* ============ CALC ENGINE ============ */
