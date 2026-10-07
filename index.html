@@ -132,6 +132,32 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 .bubble.open .bubble-body{ display:block; }
 .bubble.open .chev{ transform: rotate(90deg); }
 .bubble-body .item{ margin-bottom:8px; }
+.self-bubble .bubble-head{ padding-bottom:10px; }
+.self-participants{ display:grid; gap:6px; padding:0 10px 10px; }
+.person-row{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:rgba(255,255,255,.72); border:1px solid rgba(11,79,168,.10);
+  border-radius:12px; padding:9px 11px;
+}
+.person-name{ font-size:13px; font-weight:700; color:var(--ink); }
+.person-meta{ font-size:10.5px; color:var(--ink-faint); margin-top:2px; }
+.person-total{ font-size:14px; font-weight:700; color:var(--green); white-space:nowrap; }
+.bubble-add{
+  display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;
+  gap:6px; padding:8px; margin-bottom:8px; background:rgba(255,255,255,.6); border-radius:13px;
+}
+.bubble-add input{
+  width:100%; min-width:0; border:1px solid var(--border); border-radius:10px;
+  background:white; padding:9px 10px; font-size:13px;
+}
+.bubble-add button{
+  border:none; border-radius:10px; padding:9px 12px; background:var(--blue); color:white;
+  font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;
+}
+@media (max-width:520px){
+  .bubble-add{ grid-template-columns:1fr 1fr; }
+  .bubble-add button{ grid-column:1 / -1; }
+}
 
 .namegroup{
   background:#f7fafd; border:1px solid #dce8f7; border-radius:16px;
@@ -347,10 +373,15 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 <div id="tab-self" style="display:none">
   <div class="quickadd card">
     <div class="qa-field">
-      <input id="qa-self-name" placeholder="Товар для себя">
+      <input id="qa-self-name" placeholder="Название вещи">
+    </div>
+    <div class="qa-two qa-field">
+      <input id="qa-self-participant" placeholder="Участник, например Максим">
+      <input id="qa-self-tag" list="self-purchase-tags" placeholder="Закупка, например #12">
+      <datalist id="self-purchase-tags"></datalist>
     </div>
     <button class="qa-add press" onclick="quickAddSelf()">+ Добавить</button>
-    <div class="qa-hint">Без наценки и комиссии — только себестоимость.</div>
+    <div class="qa-hint">Одинаковая закупка объединит вещи в одну карточку. Участники и суммы посчитаются автоматически.</div>
   </div>
   <div id="selfList"></div>
 </div>
@@ -593,6 +624,8 @@ function applyRemoteData(remote){
   refreshClientSelect();
   loadSettingsUI();
   renderList();
+  renderSelf();
+  renderDone();
 }
 
 function syncNow(){
@@ -655,6 +688,27 @@ function profit(it){ return it.kind==='self' ? null : computeCommission(it); }
 function deriveStatus(it){ return it.stage || 'draft'; }
 
 function normalizedPurchaseTag(value){ return String(value||'').trim(); }
+function normalizedParticipant(value){ return String(value||'').trim().replace(/\s+/g,' '); }
+function inferredParticipantFromName(name){
+  const clean = String(name||'').trim();
+  if(!clean) return '';
+  const separated = clean.split(/\s+(?:—|–|\||-)\s+/).map(normalizedParticipant).filter(Boolean);
+  if(separated.length>1) return separated[separated.length-1];
+  const words = clean.split(/\s+/);
+  return words.length>1 ? words[words.length-1] : '';
+}
+function participantFor(it){
+  return normalizedParticipant(it.participant) || inferredParticipantFromName(it.name) || 'Не указан';
+}
+function participantKey(it){ return participantFor(it).toLocaleLowerCase('ru-RU'); }
+function displayItemName(it){
+  const name = String(it.name||'').trim();
+  if(it.kind!=='self') return name;
+  const participant = participantFor(it);
+  if(participant==='Не указан' || !name.toLocaleLowerCase('ru-RU').endsWith(participant.toLocaleLowerCase('ru-RU'))) return name;
+  const withoutParticipant = name.slice(0, name.length-participant.length).trim().replace(/[—–|\-]\s*$/,'').trim();
+  return withoutParticipant || name;
+}
 function positiveWeight(value){
   const weight = Number(String(value??'').trim().replace(',','.'));
   return Number.isFinite(weight) && weight>0 ? weight : 0;
@@ -668,6 +722,8 @@ function refreshPurchaseTagSelect(){
     ? tags.map(t=>`<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('')
     : '<option value="">— нет закупок —</option>';
   if(tags.includes(prev)) ppTag.value = prev;
+  const selfTags = document.getElementById('self-purchase-tags');
+  if(selfTags) selfTags.innerHTML = tags.map(t=>`<option value="${escapeAttr(t)}"></option>`).join('');
 }
 
 /* ============ CLIENT SELECT REFRESH ============ */
@@ -705,16 +761,25 @@ function quickAddSelf(){
   const nameEl = document.getElementById('qa-self-name');
   const name = nameEl.value.trim();
   if(!name) return;
+  const participantEl = document.getElementById('qa-self-participant');
+  const tagEl = document.getElementById('qa-self-tag');
+  const participant = normalizedParticipant(participantEl.value);
+  const tag = normalizedPurchaseTag(tagEl.value);
   const it = blankItem(name, 'Себе', 'self');
+  it.participant = participant;
+  it.purchaseTag = tag;
   items.unshift(it);
   save();
   nameEl.value='';
+  participantEl.value='';
+  if(tag) openBubbles.add(tag);
   openId = it.id;
+  refreshPurchaseTagSelect();
   renderSelf();
 }
 function blankItem(name, client, kind){
   return {
-    id: uid(), name, client, kind,
+    id: uid(), name, client, kind, participant:'',
     type:'shoes', size:'', qty:1, priceYuan:'', weightKg:'',
     purchaseTag:'', rateCost:'', deliveryIntl:'', deliveryRf:'',
     insuranceOn:true, commissionOverride:'', stage:'draft',
@@ -742,13 +807,14 @@ function itemCardHTML(it){
   const stIdx = STAGE_INDEX(deriveStatus(it));
   const isOpen = openId === it.id;
   const dots = STAGES.map((s,i)=>`<div class="dot ${i<=stIdx?'done':''}"></div>`).join('');
-  const tagsLine = [it.client||'без клиента', it.purchaseTag||'без закупки'].join(' · ');
+  const ownerLabel = it.kind==='self' ? participantFor(it) : (it.client||'без клиента');
+  const tagsLine = [ownerLabel, normalizedPurchaseTag(it.purchaseTag)||'без закупки'].join(' · ');
 
   return `
   <div class="item card ${isOpen?'open':''}" data-id="${it.id}">
     <div class="item-head" onclick="toggleOpen('${it.id}')">
       <div>
-        <div class="item-name">${escapeHtml(it.name)}</div>
+        <div class="item-name">${escapeHtml(displayItemName(it))}</div>
         <div class="item-tags" data-role="tags">${escapeHtml(tagsLine)}</div>
         <div class="progress" data-role="progress">${dots}</div>
       </div>
@@ -759,7 +825,9 @@ function itemCardHTML(it){
     </div>
     <div class="item-body">
       <div class="field-grid">
-        <div class="field"><label>Клиент</label><input type="text" data-field="client" value="${escapeAttr(it.client)}" placeholder="имя"></div>
+        ${it.kind==='self'
+          ? `<div class="field"><label>Участник</label><input type="text" data-field="participant" value="${escapeAttr(participantFor(it)==='Не указан'?'':participantFor(it))}" placeholder="имя или имя + фамилия"></div>`
+          : `<div class="field"><label>Клиент</label><input type="text" data-field="client" value="${escapeAttr(it.client)}" placeholder="имя"></div>`}
         <div class="field"><label>Закупка (тег)</label><input type="text" data-field="purchaseTag" value="${escapeAttr(it.purchaseTag)}" placeholder="напр. закупка #12"></div>
         <div class="field">
           <label>Тип</label>
@@ -826,7 +894,7 @@ function groupedListHTML(list){
   const loose = [];
   const groups = {};
   list.forEach(i=>{
-    const tag = (i.purchaseTag||'').trim();
+    const tag = normalizedPurchaseTag(i.purchaseTag);
     if(tag){ (groups[tag] = groups[tag]||[]).push(i); }
     else loose.push(i);
   });
@@ -861,6 +929,7 @@ function groupedListHTML(list){
   }).join('');
 }
 function bubbleHTML(tag, itemsIn){
+  if(itemsIn.every(i=>i.kind==='self')) return selfPurchaseBubbleHTML(tag, itemsIn);
   const isOpen = openBubbles.has(tag);
   const totalWeight = itemsIn.reduce((s,i)=>s+(parseFloat(i.weightKg)||0),0);
   const totalProfit = itemsIn.reduce((s,i)=>s+(profit(i)||0),0);
@@ -877,6 +946,54 @@ function bubbleHTML(tag, itemsIn){
       </div>
     </div>
     <div class="bubble-body">${groupByNameHTML(itemsIn, tag)}</div>
+  </div>`;
+}
+function selfPurchaseBubbleHTML(tag, itemsIn){
+  const isOpen = openBubbles.has(tag);
+  const totalWeight = itemsIn.reduce((sum,item)=>sum+positiveWeight(item.weightKg),0);
+  const totalCost = itemsIn.reduce((sum,item)=>sum+ownTotalCost(item),0);
+  const people = {};
+  const order = [];
+  itemsIn.forEach(item=>{
+    const key = participantKey(item);
+    if(!people[key]){
+      people[key] = { name:participantFor(item), items:[], weight:0, total:0 };
+      order.push(key);
+    }
+    people[key].items.push(item);
+    people[key].weight += positiveWeight(item.weightKg);
+    people[key].total += ownTotalCost(item);
+  });
+  const peopleHTML = order.map(key=>{
+    const person = people[key];
+    const countLabel = person.items.length===1 ? '1 вещь' : `${person.items.length} вещи`;
+    const weightLabel = person.weight ? ` · ${person.weight.toFixed(2)} кг` : '';
+    return `<div class="person-row">
+      <div><div class="person-name">${escapeHtml(person.name)}</div><div class="person-meta">${countLabel}${weightLabel}</div></div>
+      <div class="person-total">${fmt(person.total)} ₽</div>
+    </div>`;
+  }).join('');
+  return `
+  <div class="bubble self-bubble ${isOpen?'open':''}" data-tag="${escapeAttr(tag)}">
+    <div class="bubble-head" data-role="bubble-toggle">
+      <div>
+        <div class="bubble-title">📦 ${escapeHtml(tag)}</div>
+        <div class="bubble-sub">${itemsIn.length} поз. · ${order.length} участн. · ${totalWeight?totalWeight.toFixed(2)+' кг':'вес не указан'}</div>
+      </div>
+      <div class="item-right">
+        <span class="item-profit ${totalCost?'':'na'}">${fmt(totalCost)} ₽</span>
+        <span class="chev">▸</span>
+      </div>
+    </div>
+    <div class="self-participants">${peopleHTML}</div>
+    <div class="bubble-body">
+      <div class="bubble-add">
+        <input data-add-name placeholder="Название вещи">
+        <input data-add-participant placeholder="Участник">
+        <button class="press" data-action="add-to-purchase">+ Вещь</button>
+      </div>
+      ${itemsIn.map(itemCardHTML).join('')}
+    </div>
   </div>`;
 }
 function groupByNameHTML(list, tag){
@@ -939,6 +1056,7 @@ function handleFieldInput(e){
     clients.push(value);
     refreshClientSelect();
   }
+  if(field==='participant') it.participant = normalizedParticipant(value);
   if(field==='purchaseTag') refreshPurchaseTagSelect();
   save();
 
@@ -953,11 +1071,16 @@ function handleFieldInput(e){
 
   refreshCardComputed(card, it);
   refreshStatChips();
+  if(e.type==='change' && it.kind==='self'){
+    const tag = normalizedPurchaseTag(it.purchaseTag);
+    if(tag) openBubbles.add(tag);
+    renderSelf();
+  }
 }
 
 function refreshCardComputed(card, it){
   const cb = costBasis(it);
-  const comm = computeCommission(it);
+  const comm = profit(it);
   const cp = clientPrice(it);
 
   const profitEl = card.querySelector('[data-role="profit"]');
@@ -966,7 +1089,10 @@ function refreshCardComputed(card, it){
     profitEl.classList.toggle('na', comm===null);
   }
   const tagsEl = card.querySelector('[data-role="tags"]');
-  if(tagsEl) tagsEl.textContent = [it.client||'без клиента', it.purchaseTag||'без закупки'].join(' · ');
+  if(tagsEl){
+    const ownerLabel = it.kind==='self' ? participantFor(it) : (it.client||'без клиента');
+    tagsEl.textContent = [ownerLabel, normalizedPurchaseTag(it.purchaseTag)||'без закупки'].join(' · ');
+  }
 
   const stIdx = STAGE_INDEX(deriveStatus(it));
   const progEl = card.querySelector('[data-role="progress"]');
@@ -993,6 +1119,26 @@ function setText(root, sel, text){ const el = root.querySelector(sel); if(el) el
 
 /* ============ CLICK DELEGATION (stage change, delete, receipt) ============ */
 function handleCardClick(e){
+  const addToPurchase = e.target.closest('[data-action="add-to-purchase"]');
+  if(addToPurchase){
+    const bubble = addToPurchase.closest('.bubble');
+    const nameEl = bubble.querySelector('[data-add-name]');
+    const participantEl = bubble.querySelector('[data-add-participant]');
+    const name = nameEl.value.trim();
+    const participant = normalizedParticipant(participantEl.value);
+    if(!name){ alert('Впиши название вещи.'); nameEl.focus(); return; }
+    if(!participant){ alert('Укажи участника — имя или имя с фамилией.'); participantEl.focus(); return; }
+    const item = blankItem(name, 'Себе', 'self');
+    item.purchaseTag = bubble.dataset.tag;
+    item.participant = participant;
+    items.unshift(item);
+    openBubbles.add(item.purchaseTag);
+    openId = item.id;
+    save();
+    refreshPurchaseTagSelect();
+    renderSelf();
+    return;
+  }
   const nameToggle = e.target.closest('[data-role="namegroup-toggle"]');
   if(nameToggle){
     const ng = nameToggle.closest('.namegroup');
@@ -1030,6 +1176,7 @@ function handleCardClick(e){
   const actionEl = e.target.closest('[data-action]');
   if(actionEl){
     const card = actionEl.closest('.item');
+    if(!card) return;
     const id = card.dataset.id;
     if(actionEl.dataset.action==='delete'){
       items = items.filter(i=>i.id!==id);
@@ -1195,7 +1342,7 @@ function refreshStatChips(){
 
 function renderSelf(){
   const list = items.filter(i=>i.kind==='self');
-  document.getElementById('selfList').innerHTML = list.length ? list.map(itemCardHTML).join('') : `<div class="empty">Пока пусто</div>`;
+  document.getElementById('selfList').innerHTML = groupedListHTML(list);
 }
 
 /* ============ STATS TAB ============ */
