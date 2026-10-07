@@ -644,14 +644,31 @@ function computeCustoms(it){
   return settings.customsBase + (eur - settings.customsTh) * settings.eurRate * (settings.customsPct/100);
 }
 function totalDelivery(it){ return (parseFloat(it.deliveryIntl)||0) + (parseFloat(it.deliveryRf)||0); }
+function ownTotalCost(it){ return costBasis(it) + totalDelivery(it) + computeInsurance(it) + computeCustoms(it); }
 function clientPrice(it){
   const cb = costBasis(it);
   const comm = computeCommission(it);
   if(!cb || comm===null) return null;
   return cb + totalDelivery(it) + computeInsurance(it) + computeCustoms(it) + comm;
 }
-function profit(it){ return computeCommission(it); }
+function profit(it){ return it.kind==='self' ? null : computeCommission(it); }
 function deriveStatus(it){ return it.stage || 'draft'; }
+
+function normalizedPurchaseTag(value){ return String(value||'').trim(); }
+function positiveWeight(value){
+  const weight = Number(String(value??'').trim().replace(',','.'));
+  return Number.isFinite(weight) && weight>0 ? weight : 0;
+}
+
+function refreshPurchaseTagSelect(){
+  const ppTag = document.getElementById('pp-tag');
+  const prev = normalizedPurchaseTag(ppTag.value);
+  const tags = [...new Set(items.map(i=>normalizedPurchaseTag(i.purchaseTag)).filter(Boolean))];
+  ppTag.innerHTML = tags.length
+    ? tags.map(t=>`<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('')
+    : '<option value="">— нет закупок —</option>';
+  if(tags.includes(prev)) ppTag.value = prev;
+}
 
 /* ============ CLIENT SELECT REFRESH ============ */
 function refreshClientSelect(){
@@ -661,10 +678,7 @@ function refreshClientSelect(){
     clients.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('') +
     '<option value="__self__">Себе</option>';
   sel.value = prev;
-
-  const ppTag = document.getElementById('pp-tag');
-  const tags = [...new Set(items.filter(i=>i.purchaseTag).map(i=>i.purchaseTag))];
-  ppTag.innerHTML = tags.length ? tags.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('') : '<option value="">— нет закупок —</option>';
+  refreshPurchaseTagSelect();
 }
 
 /* ============ QUICK ADD ============ */
@@ -723,7 +737,7 @@ function sizeOptionsFor(type, current){
 /* ============ ITEM CARD RENDER ============ */
 function itemCardHTML(it){
   const cb = costBasis(it);
-  const comm = computeCommission(it);
+  const comm = profit(it);
   const cp = clientPrice(it);
   const stIdx = STAGE_INDEX(deriveStatus(it));
   const isOpen = openId === it.id;
@@ -787,7 +801,11 @@ function itemCardHTML(it){
         <div class="row total"><span>Клиенту итого</span><span data-sum="total">${cp!==null?fmt(cp)+' ₽':'—'}</span></div>
       </div>` : `
       <div class="summary-box" data-role="summary">
-        <div class="row total"><span>Себестоимость (без наценки)</span><span data-sum="selfcb">${cb?fmt(cb)+' ₽':'—'}</span></div>
+        <div class="row"><span>Товар</span><span data-sum="selfcb">${cb?fmt(cb)+' ₽':'—'}</span></div>
+        <div class="row"><span>Доставка (межд.+РФ)</span><span data-sum="selfdeliv">${fmt(totalDelivery(it))} ₽</span></div>
+        <div class="row"><span>Страховка</span><span data-sum="selfins">${fmt(computeInsurance(it))} ₽</span></div>
+        <div class="row"><span>Растаможка</span><span data-sum="selfcust">${computeCustoms(it)>0?fmt(computeCustoms(it))+' ₽':'—'}</span></div>
+        <div class="row total"><span>Себестоимость итого</span><span data-sum="selftotal">${fmt(ownTotalCost(it))} ₽</span></div>
       </div>`}
 
       <div class="progress-row" data-role="stages">
@@ -921,6 +939,7 @@ function handleFieldInput(e){
     clients.push(value);
     refreshClientSelect();
   }
+  if(field==='purchaseTag') refreshPurchaseTagSelect();
   save();
 
   if(field==='type'){
@@ -963,6 +982,11 @@ function refreshCardComputed(card, it){
     setText(card,'[data-sum="total"]', cp!==null?fmt(cp)+' ₽':'—');
   } else {
     setText(card,'[data-sum="selfcb"]', cb?fmt(cb)+' ₽':'—');
+    setText(card,'[data-sum="selfdeliv"]', fmt(totalDelivery(it))+' ₽');
+    setText(card,'[data-sum="selfins"]', fmt(computeInsurance(it))+' ₽');
+    const cust = computeCustoms(it);
+    setText(card,'[data-sum="selfcust"]', cust>0?fmt(cust)+' ₽':'—');
+    setText(card,'[data-sum="selftotal"]', fmt(ownTotalCost(it))+' ₽');
   }
 }
 function setText(root, sel, text){ const el = root.querySelector(sel); if(el) el.textContent = text; }
@@ -1022,20 +1046,38 @@ function handleCardClick(e){
 }
 
 /* ============ PURCHASE SPLIT ============ */
+function splitTotalByWeight(group, total, field, totalWeight){
+  const totalKopecks = Math.round(total*100);
+  const shares = group.map((item,index)=>{
+    const exact = totalKopecks * positiveWeight(item.weightKg) / totalWeight;
+    const base = Math.floor(exact);
+    return { item, index, base, fraction:exact-base };
+  });
+  let remainder = totalKopecks - shares.reduce((sum,row)=>sum+row.base,0);
+  [...shares].sort((a,b)=>b.fraction-a.fraction || a.index-b.index).forEach(row=>{
+    if(remainder>0){ row.base += 1; remainder -= 1; }
+  });
+  shares.forEach(row=>{ row.item[field] = row.base/100; });
+}
+
 function applyPurchaseSplit(){
-  const tag = document.getElementById('pp-tag').value;
+  const tag = normalizedPurchaseTag(document.getElementById('pp-tag').value);
   const intlTotal = parseFloat(document.getElementById('pp-intl').value)||0;
   const rfTotal = parseFloat(document.getElementById('pp-rf').value)||0;
   if(!tag){ alert('Нет доступных закупок — сначала укажи тег «Закупка» хотя бы у одной позиции.'); return; }
-  const group = items.filter(i=>i.purchaseTag===tag && i.kind!=='self');
-  const totalWeight = group.reduce((s,i)=>s+(parseFloat(i.weightKg)||0),0);
-  if(totalWeight<=0){ alert('У позиций этой закупки не указан вес — разложить пропорционально нечем. Впиши вес хотя бы примерно.'); return; }
-  group.forEach(i=>{
-    const w = parseFloat(i.weightKg)||0;
-    const share = w/totalWeight;
-    if(intlTotal) i.deliveryIntl = Math.round(intlTotal*share);
-    if(rfTotal) i.deliveryRf = Math.round(rfTotal*share);
-  });
+  if(intlTotal<=0 && rfTotal<=0){ alert('Впиши сумму международной доставки или доставки РФ.'); return; }
+  const group = items.filter(i=>normalizedPurchaseTag(i.purchaseTag)===tag);
+  if(!group.length){ alert('В этой закупке не найдено позиций. Обнови страницу и попробуй ещё раз.'); return; }
+  const withoutWeight = group.filter(i=>!positiveWeight(i.weightKg));
+  if(withoutWeight.length){
+    const names = withoutWeight.slice(0,3).map(i=>`«${i.name||'Без названия'}»`).join(', ');
+    const tail = withoutWeight.length>3 ? ` и ещё ${withoutWeight.length-3}` : '';
+    alert(`Не указан вес у: ${names}${tail}. Заполни вес у всех позиций закупки «${tag}», чтобы доставка распределилась точно.`);
+    return;
+  }
+  const totalWeight = group.reduce((sum,item)=>sum+positiveWeight(item.weightKg),0);
+  if(intlTotal>0) splitTotalByWeight(group, intlTotal, 'deliveryIntl', totalWeight);
+  if(rfTotal>0) splitTotalByWeight(group, rfTotal, 'deliveryRf', totalWeight);
   save();
   renderList();
 }
