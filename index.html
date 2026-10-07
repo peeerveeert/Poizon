@@ -100,6 +100,11 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 .purchase-panel{ padding:14px; margin-bottom:16px; }
 .purchase-panel h3{ font-size:14px; margin:0 0 4px; font-weight:700; }
 .purchase-panel .hint{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; line-height:1.5; }
+.purchase-total{
+  display:flex; justify-content:space-between; gap:12px; margin:10px 0;
+  padding:10px 12px; border-radius:12px; background:#f5f5f7; font-size:13px;
+}
+.purchase-total strong{ font-size:15px; }
 .pp-row{ display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
 .pp-row select, .pp-row input{
   flex:1; min-width:100px; border-radius: var(--r-sm); border:1px solid var(--border);
@@ -142,6 +147,14 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
 .person-name{ font-size:13px; font-weight:700; color:var(--ink); }
 .person-meta{ font-size:10.5px; color:var(--ink-faint); margin-top:2px; }
 .person-total{ font-size:14px; font-weight:700; color:var(--green); white-space:nowrap; }
+.purchase-cost-summary{
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px;
+  padding:0 10px 10px;
+}
+.purchase-cost-cell{ background:rgba(255,255,255,.58); border-radius:11px; padding:8px 9px; }
+.purchase-cost-label{ font-size:9.5px; color:var(--ink-faint); }
+.purchase-cost-value{ font-size:12.5px; font-weight:700; color:var(--ink); margin-top:2px; }
+.purchase-cost-cell.total{ background:rgba(11,79,168,.09); }
 .bubble-add{
   display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;
   gap:6px; padding:8px; margin-bottom:8px; background:rgba(255,255,255,.6); border-radius:13px;
@@ -345,16 +358,21 @@ h1{ font-size:22px; margin:2px 2px 2px; font-weight:700; letter-spacing:-.02em; 
   </div>
 
   <div class="purchase-panel card">
-    <h3>📦 Разбить доставку по закупке</h3>
-    <div class="hint">Впиши сумму, когда узнал факт (межд. доставка от RAKETA / доставка РФ от СДЭК) — разложится по всем позициям этой закупки пропорционально весу.</div>
+    <h3>📦 Итоги объединения</h3>
+    <div class="hint">Впиши фактические расходы — они разложатся по всем позициям закупки пропорционально весу и попадут в суммы участников.</div>
     <div class="pp-row">
       <select id="pp-tag"></select>
     </div>
     <div class="pp-row">
-      <input type="number" id="pp-intl" placeholder="Межд. доставка, ₽">
-      <input type="number" id="pp-rf" placeholder="Доставка РФ, ₽">
+      <input type="number" step="0.01" id="pp-risk" placeholder="Защита от рисков, ₽">
+      <input type="number" step="0.01" id="pp-intl" placeholder="Межд. доставка, ₽">
     </div>
-    <button class="pp-apply press" onclick="applyPurchaseSplit()">Разложить по весу</button>
+    <div class="pp-row">
+      <input type="number" step="0.01" id="pp-rf" placeholder="Доставка РФ, ₽">
+      <input type="number" step="0.01" id="pp-customs" placeholder="Таможенная пошлина, ₽">
+    </div>
+    <div class="purchase-total"><span>Расходы объединения</span><strong id="pp-total">0 ₽</strong></div>
+    <button class="pp-apply press" onclick="applyPurchaseSplit()">Распределить по весу</button>
   </div>
 
   <div class="viewbar" id="viewbar">
@@ -442,7 +460,7 @@ create policy "rw" on poizon_workspaces for all using (true) with check (true);<
     <h3>Доставка и прочее</h3>
     <div class="set-grid">
       <div class="set-field"><label>Ориентир межд. доставки, ₽/кг</label><input type="number" id="s-intlrate" value="610"></div>
-      <div class="set-field"><label>Страховка, % от себест.</label><input type="number" id="s-ins" value="1"></div>
+      <div class="set-field"><label>Оценка защиты от рисков, %</label><input type="number" id="s-ins" value="1"></div>
       <div class="set-field"><label>Порог растаможки, €</label><input type="number" id="s-customs-th" value="200"></div>
       <div class="set-field"><label>Пошлина база, ₽</label><input type="number" id="s-customs-base" value="500"></div>
       <div class="set-field"><label>Пошлина, % от превышения</label><input type="number" id="s-customs-pct" value="15"></div>
@@ -622,6 +640,7 @@ function applyRemoteData(remote){
   localStorage.setItem(CLIENTS_KEY, JSON.stringify(clients));
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   refreshClientSelect();
+  loadPurchaseExpenseInputsForTag();
   loadSettingsUI();
   renderList();
   renderSelf();
@@ -676,13 +695,17 @@ function computeCustoms(it){
   if(eur <= settings.customsTh) return 0;
   return settings.customsBase + (eur - settings.customsTh) * settings.eurRate * (settings.customsPct/100);
 }
+function hasActualAmount(value){ return value!=='' && value!==null && value!==undefined; }
+function riskProtectionCost(it){ return hasActualAmount(it.riskProtection) ? (parseFloat(it.riskProtection)||0) : computeInsurance(it); }
+function customsCost(it){ return hasActualAmount(it.customsActual) ? (parseFloat(it.customsActual)||0) : computeCustoms(it); }
 function totalDelivery(it){ return (parseFloat(it.deliveryIntl)||0) + (parseFloat(it.deliveryRf)||0); }
-function ownTotalCost(it){ return costBasis(it) + totalDelivery(it) + computeInsurance(it) + computeCustoms(it); }
+function consolidationExpenses(it){ return riskProtectionCost(it) + totalDelivery(it) + customsCost(it); }
+function ownTotalCost(it){ return costBasis(it) + consolidationExpenses(it); }
 function clientPrice(it){
   const cb = costBasis(it);
   const comm = computeCommission(it);
   if(!cb || comm===null) return null;
-  return cb + totalDelivery(it) + computeInsurance(it) + computeCustoms(it) + comm;
+  return cb + consolidationExpenses(it) + comm;
 }
 function profit(it){ return it.kind==='self' ? null : computeCommission(it); }
 function deriveStatus(it){ return it.stage || 'draft'; }
@@ -781,7 +804,7 @@ function blankItem(name, client, kind){
   return {
     id: uid(), name, client, kind, participant:'',
     type:'shoes', size:'', qty:1, priceYuan:'', weightKg:'',
-    purchaseTag:'', rateCost:'', deliveryIntl:'', deliveryRf:'',
+    purchaseTag:'', rateCost:'', riskProtection:'', deliveryIntl:'', deliveryRf:'', customsActual:'',
     insuranceOn:true, commissionOverride:'', stage:'draft',
     createdAt: Date.now()
   };
@@ -848,9 +871,11 @@ function itemCardHTML(it){
         <div class="field"><label>Цена, ¥/шт</label><input type="number" data-field="priceYuan" value="${it.priceYuan}" placeholder="—"></div>
         <div class="field"><label>Вес, кг</label><input type="number" step="0.01" data-field="weightKg" value="${it.weightKg}" placeholder="узнать"></div>
         <div class="field"><label>Курс себестоимости</label><input type="number" step="0.01" data-field="rateCost" value="${it.rateCost}" placeholder="в моменте"></div>
-        <div class="field"><label>Межд. доставка, ₽ (доля)</label><input type="number" data-field="deliveryIntl" value="${it.deliveryIntl}" placeholder="авто/вручную"></div>
-        <div class="field"><label>Доставка РФ, ₽ (доля)</label><input type="number" data-field="deliveryRf" value="${it.deliveryRf}" placeholder="авто/вручную"></div>
-        <div class="field"><label>Страховка</label>
+        <div class="field"><label>Защита от рисков, ₽ (доля)</label><input type="number" step="0.01" data-field="riskProtection" value="${it.riskProtection??''}" placeholder="оценка/факт"></div>
+        <div class="field"><label>Межд. доставка, ₽ (доля)</label><input type="number" step="0.01" data-field="deliveryIntl" value="${it.deliveryIntl}" placeholder="авто/вручную"></div>
+        <div class="field"><label>Доставка РФ, ₽ (доля)</label><input type="number" step="0.01" data-field="deliveryRf" value="${it.deliveryRf}" placeholder="авто/вручную"></div>
+        <div class="field"><label>Таможенная пошлина, ₽ (доля)</label><input type="number" step="0.01" data-field="customsActual" value="${it.customsActual??''}" placeholder="оценка/факт"></div>
+        <div class="field"><label>Оценка защиты</label>
           <select data-field="insuranceOn">
             <option value="1" ${it.insuranceOn?'selected':''}>Вкл · ${settings.insPct}%</option>
             <option value="0" ${!it.insuranceOn?'selected':''}>Выкл</option>
@@ -863,16 +888,16 @@ function itemCardHTML(it){
       <div class="summary-box" data-role="summary">
         <div class="row"><span>Себестоимость</span><span data-sum="cb">${cb?fmt(cb)+' ₽':'—'}</span></div>
         <div class="row"><span>Доставка (межд.+РФ)</span><span data-sum="deliv">${fmt(totalDelivery(it))} ₽</span></div>
-        <div class="row"><span>Страховка</span><span data-sum="ins">${fmt(computeInsurance(it))} ₽</span></div>
-        <div class="row"><span>Растаможка</span><span data-sum="cust">${computeCustoms(it)>0?fmt(computeCustoms(it))+' ₽':'—'}</span></div>
+        <div class="row"><span>Защита от рисков</span><span data-sum="ins">${fmt(riskProtectionCost(it))} ₽</span></div>
+        <div class="row"><span>Таможенная пошлина</span><span data-sum="cust">${customsCost(it)>0?fmt(customsCost(it))+' ₽':'—'}</span></div>
         <div class="row"><span>Комиссия</span><span data-sum="comm">${comm!==null?fmt(comm)+' ₽':'—'}</span></div>
         <div class="row total"><span>Клиенту итого</span><span data-sum="total">${cp!==null?fmt(cp)+' ₽':'—'}</span></div>
       </div>` : `
       <div class="summary-box" data-role="summary">
         <div class="row"><span>Товар</span><span data-sum="selfcb">${cb?fmt(cb)+' ₽':'—'}</span></div>
         <div class="row"><span>Доставка (межд.+РФ)</span><span data-sum="selfdeliv">${fmt(totalDelivery(it))} ₽</span></div>
-        <div class="row"><span>Страховка</span><span data-sum="selfins">${fmt(computeInsurance(it))} ₽</span></div>
-        <div class="row"><span>Растаможка</span><span data-sum="selfcust">${computeCustoms(it)>0?fmt(computeCustoms(it))+' ₽':'—'}</span></div>
+        <div class="row"><span>Защита от рисков</span><span data-sum="selfins">${fmt(riskProtectionCost(it))} ₽</span></div>
+        <div class="row"><span>Таможенная пошлина</span><span data-sum="selfcust">${customsCost(it)>0?fmt(customsCost(it))+' ₽':'—'}</span></div>
         <div class="row total"><span>Себестоимость итого</span><span data-sum="selftotal">${fmt(ownTotalCost(it))} ₽</span></div>
       </div>`}
 
@@ -951,6 +976,8 @@ function bubbleHTML(tag, itemsIn){
 function selfPurchaseBubbleHTML(tag, itemsIn){
   const isOpen = openBubbles.has(tag);
   const totalWeight = itemsIn.reduce((sum,item)=>sum+positiveWeight(item.weightKg),0);
+  const productsCost = itemsIn.reduce((sum,item)=>sum+costBasis(item),0);
+  const expensesCost = itemsIn.reduce((sum,item)=>sum+consolidationExpenses(item),0);
   const totalCost = itemsIn.reduce((sum,item)=>sum+ownTotalCost(item),0);
   const people = {};
   const order = [];
@@ -986,6 +1013,11 @@ function selfPurchaseBubbleHTML(tag, itemsIn){
       </div>
     </div>
     <div class="self-participants">${peopleHTML}</div>
+    <div class="purchase-cost-summary">
+      <div class="purchase-cost-cell"><div class="purchase-cost-label">Товары</div><div class="purchase-cost-value">${fmt(productsCost)} ₽</div></div>
+      <div class="purchase-cost-cell"><div class="purchase-cost-label">Расходы объединения</div><div class="purchase-cost-value">${fmt(expensesCost)} ₽</div></div>
+      <div class="purchase-cost-cell total"><div class="purchase-cost-label">Всё вместе</div><div class="purchase-cost-value">${fmt(totalCost)} ₽</div></div>
+    </div>
     <div class="bubble-body">
       <div class="bubble-add">
         <input data-add-name placeholder="Название вещи">
@@ -1101,16 +1133,16 @@ function refreshCardComputed(card, it){
   if(it.kind!=='self'){
     setText(card,'[data-sum="cb"]', cb?fmt(cb)+' ₽':'—');
     setText(card,'[data-sum="deliv"]', fmt(totalDelivery(it))+' ₽');
-    setText(card,'[data-sum="ins"]', fmt(computeInsurance(it))+' ₽');
-    const cust = computeCustoms(it);
+    setText(card,'[data-sum="ins"]', fmt(riskProtectionCost(it))+' ₽');
+    const cust = customsCost(it);
     setText(card,'[data-sum="cust"]', cust>0?fmt(cust)+' ₽':'—');
     setText(card,'[data-sum="comm"]', comm!==null?fmt(comm)+' ₽':'—');
     setText(card,'[data-sum="total"]', cp!==null?fmt(cp)+' ₽':'—');
   } else {
     setText(card,'[data-sum="selfcb"]', cb?fmt(cb)+' ₽':'—');
     setText(card,'[data-sum="selfdeliv"]', fmt(totalDelivery(it))+' ₽');
-    setText(card,'[data-sum="selfins"]', fmt(computeInsurance(it))+' ₽');
-    const cust = computeCustoms(it);
+    setText(card,'[data-sum="selfins"]', fmt(riskProtectionCost(it))+' ₽');
+    const cust = customsCost(it);
     setText(card,'[data-sum="selfcust"]', cust>0?fmt(cust)+' ₽':'—');
     setText(card,'[data-sum="selftotal"]', fmt(ownTotalCost(it))+' ₽');
   }
@@ -1207,12 +1239,44 @@ function splitTotalByWeight(group, total, field, totalWeight){
   shares.forEach(row=>{ row.item[field] = row.base/100; });
 }
 
+function purchaseExpenseInputs(){
+  return [
+    { id:'pp-risk', field:'riskProtection', label:'защиту от рисков' },
+    { id:'pp-intl', field:'deliveryIntl', label:'международную доставку' },
+    { id:'pp-rf', field:'deliveryRf', label:'доставку по РФ' },
+    { id:'pp-customs', field:'customsActual', label:'таможенную пошлину' }
+  ].map(spec=>{
+    const raw = document.getElementById(spec.id).value.trim();
+    const value = Number(raw.replace(',','.'));
+    return { ...spec, raw, value };
+  });
+}
+
+function updatePurchaseExpenseTotal(){
+  const total = purchaseExpenseInputs().reduce((sum,input)=>{
+    return sum + (input.raw!=='' && Number.isFinite(input.value) ? input.value : 0);
+  },0);
+  document.getElementById('pp-total').textContent = fmt(total)+' ₽';
+}
+
+function loadPurchaseExpenseInputsForTag(){
+  const tag = normalizedPurchaseTag(document.getElementById('pp-tag').value);
+  const group = items.filter(item=>normalizedPurchaseTag(item.purchaseTag)===tag);
+  purchaseExpenseInputs().forEach(input=>{
+    const hasValues = group.length>0 && group.every(item=>hasActualAmount(item[input.field]));
+    const total = hasValues ? group.reduce((sum,item)=>sum+(parseFloat(item[input.field])||0),0) : '';
+    document.getElementById(input.id).value = total==='' ? '' : Number(total.toFixed(2));
+  });
+  updatePurchaseExpenseTotal();
+}
+
 function applyPurchaseSplit(){
   const tag = normalizedPurchaseTag(document.getElementById('pp-tag').value);
-  const intlTotal = parseFloat(document.getElementById('pp-intl').value)||0;
-  const rfTotal = parseFloat(document.getElementById('pp-rf').value)||0;
+  const provided = purchaseExpenseInputs().filter(input=>input.raw!=='');
   if(!tag){ alert('Нет доступных закупок — сначала укажи тег «Закупка» хотя бы у одной позиции.'); return; }
-  if(intlTotal<=0 && rfTotal<=0){ alert('Впиши сумму международной доставки или доставки РФ.'); return; }
+  if(!provided.length){ alert('Впиши хотя бы один фактический расход объединения.'); return; }
+  const invalid = provided.find(input=>!Number.isFinite(input.value) || input.value<0);
+  if(invalid){ alert(`Проверь сумму за ${invalid.label}: значение должно быть нулём или положительным числом.`); return; }
   const group = items.filter(i=>normalizedPurchaseTag(i.purchaseTag)===tag);
   if(!group.length){ alert('В этой закупке не найдено позиций. Обнови страницу и попробуй ещё раз.'); return; }
   const withoutWeight = group.filter(i=>!positiveWeight(i.weightKg));
@@ -1223,10 +1287,11 @@ function applyPurchaseSplit(){
     return;
   }
   const totalWeight = group.reduce((sum,item)=>sum+positiveWeight(item.weightKg),0);
-  if(intlTotal>0) splitTotalByWeight(group, intlTotal, 'deliveryIntl', totalWeight);
-  if(rfTotal>0) splitTotalByWeight(group, rfTotal, 'deliveryRf', totalWeight);
+  provided.forEach(input=>splitTotalByWeight(group, input.value, input.field, totalWeight));
   save();
   renderList();
+  renderSelf();
+  renderDone();
 }
 
 /* ============ RECEIPT ============ */
@@ -1409,7 +1474,14 @@ function saveSettings(){
 
 
 /* ============ UTIL ============ */
-function fmt(n){ return Math.round(n||0).toLocaleString('ru-RU'); }
+function fmt(n){
+  const value = Number(n)||0;
+  const hasKopecks = Math.abs(value-Math.round(value))>0.0001;
+  return value.toLocaleString('ru-RU',{
+    minimumFractionDigits:hasKopecks?2:0,
+    maximumFractionDigits:2
+  });
+}
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escapeAttr(s){ return escapeHtml(s); }
 
@@ -1433,6 +1505,11 @@ document.getElementById('viewbar').addEventListener('click', e=>{
   setFilter(b.dataset.f);
 });
 
+['pp-risk','pp-intl','pp-rf','pp-customs'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', updatePurchaseExpenseTotal);
+});
+document.getElementById('pp-tag').addEventListener('change', loadPurchaseExpenseInputsForTag);
+
 /* ============ GLOBAL DELEGATION ON LISTS (survives re-renders, never re-bound per card) ============ */
 ['itemsList','selfList','doneList'].forEach(id=>{
   const root = document.getElementById(id);
@@ -1454,6 +1531,7 @@ document.addEventListener('click', e=>{
 refreshClientSelect();
 loadSettingsUI();
 renderList();
+loadPurchaseExpenseInputsForTag();
 initSyncUI();
 </script>
 </body>
